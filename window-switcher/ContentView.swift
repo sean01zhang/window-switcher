@@ -27,12 +27,17 @@ struct ContentView: View {
                                     // make the text box extend all the way.
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                                     .font(.system(size: 14))
+                                    .foregroundStyle(viewModel.isSelected(window) ? Color.white : Color.black)
                             }
                             .contentShape(Rectangle())
                                 .padding(4)
                                 .padding(.horizontal, 8)
                                 .onTapGesture {
-                                    viewModel.selectWindow(window)
+                                    if viewModel.isSelected(window) {
+                                        viewModel.toggleSelectedWindow()
+                                    } else {
+                                        viewModel.selectWindow(window)
+                                    }
                                 }
                                 .background(
                                     RoundedRectangle(cornerRadius: 8).fill(
@@ -57,7 +62,7 @@ struct ContentView: View {
             SearchBarView(searchText: $viewModel.searchText, searchPrompt: "Search Windows")
                 .padding(.bottom).padding(.horizontal).padding(.top, 5)
         }
-        .background(VisualEffect())
+        .background(VisualEffect().clipShape(RoundedRectangle(cornerRadius: 16)))
         .onChange(of: viewModel.searchText, initial: true) { oldValue, newValue in
             viewModel.search()
         }
@@ -72,6 +77,19 @@ struct ContentView: View {
         .onKeyPress(.return) {
             viewModel.toggleSelectedWindow()
             return KeyPress.Result.handled
+        }
+        .onKeyPress(.escape) {
+            if !viewModel.searchText.isEmpty {
+                viewModel.updateSearchTextAsync("")
+            } else {
+                // Close window
+                NSApplication.shared.hide(self)
+            }
+            
+            return KeyPress.Result.handled
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            viewModel.refresh()
         }
     }
 }

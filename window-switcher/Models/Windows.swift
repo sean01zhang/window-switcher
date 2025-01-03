@@ -46,13 +46,8 @@ class Windows {
                         continue
                     }
                     
-                    print(axWindow)
-                    
                     windows.append(Window(id: axWindow.hashValue, appName: app.localizedName ?? "Unknown", appPID: app.processIdentifier, index: i, name: title, element: axWindow))
                 }
-            } else {
-                // TODO: Remove debugging
-                print("\(err)")
             }
         }
         
@@ -72,10 +67,12 @@ class Windows {
             print("Could not get running application")
             return
         }
-        let ok = app.activate(from: app)
-        if !ok {
-            print("(\(window.appName)/\(window.name)) Could not activate application")
-            return
+        DispatchQueue.main.async {
+            let ok = app.activate()
+            if !ok {
+                print("(\(window.appName)/\(window.name)) Could not activate application")
+                return
+            }
         }
     }
     
@@ -99,27 +96,11 @@ class Windows {
         return results.map(\.1)
     }
     
-    // TODO: Remove this
-    private static func testWindows() -> [Window] {
-        let names = [
-            "Firefox", "Chrome", "Microsoft Edge", "Brave", "Opera", "Safari",
-            "Obsidian", "Terminal", "Visual Studio Code", "Visual Studio", "iTerm2",
-            "Sublime Text", "Atom", "Discord", "Telegram", "Slack", "Twitter",
-        ]
-        let testElem = AXUIElementCreateApplication(0)
-
-        return names.enumerated().map{ (index, name) -> Window in
-            return Window(id: index, appName: "Sean", appPID: 0, index: 0, name: name, element: testElem)
-        }
-    }
-    
     init() {
         windows = Windows.getInitialWindows()
-        
-        // TODO: Remove this
-        if windows.isEmpty {
-            windows = Windows.testWindows()
-        }
-        
+    }
+    
+    public func refreshWindows() {
+        windows = Windows.getInitialWindows()
     }
 }

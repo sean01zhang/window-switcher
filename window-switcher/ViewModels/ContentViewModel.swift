@@ -96,4 +96,10 @@ class ContentViewModel: ObservableObject {
         }
         updateSelectedWindowAsync(windows[selectedWindowIndex])
     }
+    
+    func refresh() {
+        windowModel.refreshWindows()
+        updateSearchTextAsync("")
+        search()
+    }
 }
