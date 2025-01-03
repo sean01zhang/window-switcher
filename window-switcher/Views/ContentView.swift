@@ -21,17 +21,7 @@ struct ContentView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(viewModel.windows, id: \.id) { window in
-                            HStack {
-                                Text(window.fqn())
-                                    // Yes you need maxHeight AND maxWidth infinity to
-                                    // make the text box extend all the way.
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(viewModel.isSelected(window) ? Color.white : Color.black)
-                            }
-                            .contentShape(Rectangle())
-                                .padding(4)
-                                .padding(.horizontal, 8)
+                            WindowListItemView(window: window, isSelected: viewModel.isSelected(window))
                                 .onTapGesture {
                                     if viewModel.isSelected(window) {
                                         viewModel.toggleSelectedWindow()
@@ -39,12 +29,6 @@ struct ContentView: View {
                                         viewModel.selectWindow(window)
                                     }
                                 }
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8).fill(
-                                        viewModel.isSelected(window) ?
-                                        Color.accentColor : Color.clear
-                                    )
-                                )
                                 .onChange(of: viewModel.selectedWindowIndex, initial: true) { oldIndex, index in
                                     guard index >= 0 else { return }
                                     withAnimation {
@@ -63,30 +47,11 @@ struct ContentView: View {
                 .padding(.bottom).padding(.horizontal).padding(.top, 5)
         }
         .background(VisualEffect().clipShape(RoundedRectangle(cornerRadius: 16)))
+        .onKeyPress() { key in
+            return viewModel.handleKeyPress(key)
+        }
         .onChange(of: viewModel.searchText, initial: true) { oldValue, newValue in
             viewModel.search()
-        }
-        .onKeyPress(.upArrow) {
-            viewModel.selectPreviousWindow()
-            return KeyPress.Result.handled
-        }
-        .onKeyPress(.downArrow) {
-            viewModel.selectNextWindow()
-            return KeyPress.Result.handled
-        }
-        .onKeyPress(.return) {
-            viewModel.toggleSelectedWindow()
-            return KeyPress.Result.handled
-        }
-        .onKeyPress(.escape) {
-            if !viewModel.searchText.isEmpty {
-                viewModel.updateSearchTextAsync("")
-            } else {
-                // Close window
-                NSApplication.shared.hide(self)
-            }
-            
-            return KeyPress.Result.handled
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             viewModel.refresh()
