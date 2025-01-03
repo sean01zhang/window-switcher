@@ -6,6 +6,8 @@
 //
 
 import AppKit
+import Cocoa
+import ScreenCaptureKit
 
 struct Window {
     var id: Int
@@ -46,6 +48,8 @@ class Windows {
                         continue
                     }
                     
+                    getWindowThumbnail(axWindow)
+                    
                     windows.append(Window(id: axWindow.hashValue, appName: app.localizedName ?? "Unknown", appPID: app.processIdentifier, index: i, name: title, element: axWindow))
                 }
             }
@@ -54,6 +58,81 @@ class Windows {
         return windows
     }
     
+    private static async func getWindowThumbnail(_ window: AXUIElement) -> NSImage? {
+        // Get the window's position and size.
+        var posRef: CFTypeRef?
+        var pos: CGPoint = .zero
+        let err = AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &posRef)
+        if err == .success, AXValueGetValue(posRef as! AXValue, .cgPoint, &pos) {
+            // No-op.
+        } else {
+            return nil
+        }
+        
+        var sizeRef: CFTypeRef?
+        var size: CGSize = .zero
+        let err2 = AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeRef)
+        if err2 == .success, AXValueGetValue(sizeRef as! AXValue, .cgSize, &size) {
+            // No-op.
+        } else {
+            return nil
+        }
+        
+        let bounds = CGRect(origin: pos, size: size)
+        
+        // Get content that is currently available for capture.
+        let availableContent = try await SCShareableContent.current; catch { return nil }
+                
+        // Create instance of SCContentFilter to record entire display.
+        guard let display = availableContent.displays.first else { return nil }
+        
+        
+        var excludedApps = [SCRunningApplication]()
+        // Create a content filter with excluded apps.
+        filter = SCContentFilter(display: display,
+                                 excludingApplications: excludedApps,
+                                 exceptingWindows: [])
+        
+        
+        
+        var streamConfig = SCStreamConfiguration()
+
+
+        if let dynamicRangePreset = selectedDynamicRangePreset?.scDynamicRangePreset {
+            streamConfig = SCStreamConfiguration(preset: dynamicRangePreset)
+        }
+
+
+        // Configure audio capture.
+        streamConfig.capturesAudio = isAudioCaptureEnabled
+        streamConfig.excludesCurrentProcessAudio = isAppAudioExcluded
+        streamConfig.captureMicrophone = isMicCaptureEnabled
+
+
+        // Configure the display content width and height.
+        if captureType == .display, let display = selectedDisplay {
+            streamConfig.width = display.width * scaleFactor
+            streamConfig.height = display.height * scaleFactor
+        }
+
+
+        // Configure the window content width and height.
+        if captureType == .window, let window = selectedWindow {
+            streamConfig.width = Int(window.frame.width) * 2
+            streamConfig.height = Int(window.frame.height) * 2
+        }
+
+
+        // Set the capture interval at 60 fps.
+        streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+
+
+        // Increase the depth of the frame queue to ensure high fps at the expense of increasing
+        // the memory footprint of WindowServer.
+        streamConfig.queueDepth = 5
+
+    }
+
     public static func select(_ window: Window) {
         // Raise window to top.
         let err = AXUIElementPerformAction(window.element, kAXRaiseAction as CFString)
