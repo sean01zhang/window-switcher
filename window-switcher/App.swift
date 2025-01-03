@@ -16,7 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let window = NSApplication.shared.windows.first {
             window.level = .floating
             window.backgroundColor = .clear
-            window.styleMask = [.borderless, .fullSizeContentView]
+            window.styleMask = [.borderless]
         }
         
         NSApp.setActivationPolicy(.accessory)
