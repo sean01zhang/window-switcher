@@ -8,15 +8,19 @@
 import SwiftUI
 import Carbon
 
+// periphery:ignore
+var activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Prevent App Nap to preserve responsiveness")
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: Any?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Get window and make it borderless.
         if let window = NSApplication.shared.windows.first {
-            window.level = .floating
+            window.level = .popUpMenu
             window.backgroundColor = .clear
             window.styleMask = [.borderless]
+            window.center()
         }
         
         NSApp.setActivationPolicy(.accessory)

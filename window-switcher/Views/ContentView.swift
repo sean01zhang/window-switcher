@@ -16,35 +16,53 @@ struct ContentView: View {
     @StateObject var viewModel = ContentViewModel()
     
     var body: some View {
-        VStack {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(viewModel.windows, id: \.id) { window in
-                            WindowListItemView(window: window, isSelected: viewModel.isSelected(window))
-                                .onTapGesture {
-                                    if viewModel.isSelected(window) {
-                                        viewModel.toggleSelectedWindow()
-                                    } else {
-                                        viewModel.selectWindow(window)
+        VSplitView {
+            HSplitView {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(viewModel.windows, id: \.id) { window in
+                                WindowListItemView(window: window, isSelected: viewModel.isSelected(window))
+                                    .onTapGesture {
+                                        if viewModel.isSelected(window) {
+                                            viewModel.toggleSelectedWindow()
+                                        } else {
+                                            viewModel.selectWindow(window)
+                                        }
                                     }
-                                }
-                                .onChange(of: viewModel.selectedWindowIndex, initial: true) { oldIndex, index in
-                                    guard index >= 0 else { return }
-                                    withAnimation {
-                                        proxy.scrollTo(viewModel.windows[index].id, anchor: .center)
+                                    .onChange(of: viewModel.selectedWindowIndex, initial: true) { oldIndex, index in
+                                        guard index >= 0 else { return }
+                                        withAnimation {
+                                            proxy.scrollTo(viewModel.windows[index].id, anchor: .center)
+                                        }
                                     }
-                                }
-                                .focusable()
-                                .focusEffectDisabled()
+                                    .focusable()
+                                    .focusEffectDisabled()
+                            }
                         }
                     }
                 }
-                .padding(.horizontal).padding(.top)
+                .padding()
+                // Image Preview
+                HStack {
+                    VStack {
+                        Group {
+                            if let image = selectedImage() {
+                                image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(alignment: .center)
+                            } else {
+                                RoundedRectangle(cornerRadius: 4).fill(Color.gray)
+                            }
+                        }
+                        .frame(alignment: .center)
+                    }
+                }
+                .padding()
             }
-            Divider()
+            .frame(height: 400)
             SearchBarView(searchText: $viewModel.searchText, searchPrompt: "Search Windows")
-                .padding(.bottom).padding(.horizontal).padding(.top, 5)
         }
         .background(VisualEffect().clipShape(RoundedRectangle(cornerRadius: 16)))
         .onKeyPress() { key in
@@ -57,4 +75,20 @@ struct ContentView: View {
             viewModel.refresh()
         }
     }
+
+    func selectedImage() -> Image? {
+        guard let selectedWindow = viewModel.selectedWindow else {
+            return nil
+        }
+        
+        guard let cgImage = viewModel.windowModel.streams.images[selectedWindow.fqn()] else {
+            return nil
+        }
+        let uiImage = NSImage(cgImage: cgImage, size: .zero)
+        return Image(nsImage: uiImage)
+    }
+}
+
+#Preview {
+    ContentView()
 }
