@@ -1,6 +1,6 @@
 # Window Switcher for macOS (Work in Progress)
 
-Window Swittcher is a simple searchable window switcher for macOS. 
+Window Switcher is a simple searchable window switcher for macOS. 
 
 ## Usage
 
@@ -24,4 +24,4 @@ Window Swittcher is a simple searchable window switcher for macOS.
 - [x] Switch to windows
 - [x] List windows in current space
 - [ ] List windows in all spaces
-- [ ] Get window previews
+- [x] Get window previews

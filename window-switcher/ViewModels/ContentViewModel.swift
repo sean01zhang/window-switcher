@@ -9,6 +9,10 @@ import SwiftUI
 
 class ContentViewModel: ObservableObject {
     var windowModel: Windows = Windows()
+    var windowStreamsModel = WindowStreams()
+    
+    var selectedWindowImage: CGImage?
+    var selectedWindowStream: WindowStream?
     
     @Published var searchText: String = ""
     var windows: [Window]
@@ -19,11 +23,16 @@ class ContentViewModel: ObservableObject {
     init() {
         // Search on empty string to start.
         windows = windowModel.search("")
+        windowStreamsModel.createStreams(for: windowModel.windows)
+        DispatchQueue.main.async {
+            self.startStreamUpdates()
+        }
     }
     
     private func updateSelectedWindowAsync(_ window: Window) {
         DispatchQueue.main.async {
             self.selectedWindow = window
+            self.updateSelectedImage()
         }
     }
     
@@ -137,5 +146,35 @@ class ContentViewModel: ObservableObject {
         windowModel.refreshWindows()
         updateSearchTextAsync("")
         search()
+    }
+    
+    func getSelectedWindowStream() -> WindowStream? {
+        guard let window = selectedWindow else {
+            return nil
+        }
+        
+        return windowStreamsModel.streams[window]
+    }
+    
+    func startStreamUpdates() {
+        for stream in windowStreamsModel.streams.values {
+            stream.startUpdates()
+        }
+    }
+    
+    func stopStreamUpdates() {
+        for stream in windowStreamsModel.streams.values {
+            stream.stopUpdates()
+        }
+    }
+    
+    func updateSelectedImage() {
+        guard let ws = getSelectedWindowStream() else {
+            return
+        }
+        
+        selectedWindowStream = ws
+        
+        selectedWindowImage = ws.capturedImage
     }
 }

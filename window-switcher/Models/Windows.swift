@@ -8,7 +8,7 @@
 import AppKit
 import ScreenCaptureKit
 
-struct Window {
+struct Window : Hashable {
     var id: Int
     var appName: String
     var appPID: Int32
@@ -16,6 +16,10 @@ struct Window {
     var name: String
     
     var element: AXUIElement
+    
+    func hash(into hasher: inout Hasher) {
+        return element.hash(into: &hasher)
+    }
     
     func fqn() -> String {
         "\(appName): \(name)"
@@ -25,61 +29,6 @@ struct Window {
 class Windows {
     var windows: [Window]
     
-    var streams: WindowStreams = WindowStreams()
-    
-//    func observeApplicationOpens() {
-//        let systemWideElement = AXUIElementCreateSystemWide()
-//        var observer: AXObserver?
-//        let observerCreateStatus = AXObserverCreate(ProcessInfo.processInfo.processIdentifier, { observer, element, notification, userInfo in
-//                guard let notificationName = notification as String? else { return }
-//
-//                if notificationName == kAXApplicationActivatedNotification {
-//                    // A new application has been activated (meaning it likely just launched or became frontmost)
-//                    print("Application Activated!")
-//
-//                    // Get the application's process ID
-//                    var pid: pid_t = 0
-//                    let pidResult = AXUIElementGetPid(element, &pid)
-//
-//                    if pidResult == .success {
-//                        print("Activated Application PID: \(pid)")
-//
-//                        // Get the application's bundle identifier (optional)
-//                        if let app = NSRunningApplication(processIdentifier: pid), let bundleIdentifier = app.bundleIdentifier {
-//                            print("Activated Application Bundle Identifier: \(bundleIdentifier)")
-//                        }
-//
-//                        // Get the application's name (optional)
-//                        var appName: AnyObject?
-//                        let nameResult = AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &appName)
-//                        if nameResult == .success, let name = appName as? String {
-//                            print("Activated Application Name: \(name)")
-//                        }
-//                    } else {
-//                        print("Could not get PID of activated application. Error code: \(pidResult)")
-//                    }
-//                }
-//            }, &observer)
-//
-//            guard observerCreateStatus == .success, let observer = observer else {
-//                print("Could not create AXObserver")
-//                return
-//            }
-//
-//            // Add the notification to the observer, observing the system-wide element
-//            let addNotificationStatus = AXObserverAddNotification(observer, systemWideElement, kAXApplicationActivatedNotification as CFString, nil)
-//
-//            if addNotificationStatus != .success {
-//                print("Could not add notification: \(addNotificationStatus)")
-//                return
-//            }
-//
-//            // Run the run loop on a background thread
-//            DispatchQueue.global(qos: .background).async {
-//                CFRunLoopRun()
-//            }
-//    }
-   
     private static func experimental() {
         // Creating a SCStreamConfiguration object
         let streamConfig = SCStreamConfiguration()
@@ -175,7 +124,6 @@ class Windows {
     }
     
     init() {
-//        Windows.experimental()
         windows = Windows.getInitialWindows()
     }
     

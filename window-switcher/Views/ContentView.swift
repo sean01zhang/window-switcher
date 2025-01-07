@@ -44,21 +44,7 @@ struct ContentView: View {
                 }
                 .padding()
                 // Image Preview
-                HStack {
-                    VStack {
-                        Group {
-                            if let image = selectedImage() {
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(alignment: .center)
-                            } else {
-                                RoundedRectangle(cornerRadius: 4).fill(Color.gray)
-                            }
-                        }
-                        .frame(alignment: .center)
-                    }
-                }
+                WindowImageView(windowStream: $viewModel.selectedWindowStream)
                 .padding()
             }
             .frame(height: 400)
@@ -73,22 +59,11 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             viewModel.refresh()
+            viewModel.startStreamUpdates()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            viewModel.stopStreamUpdates()
         }
     }
 
-    func selectedImage() -> Image? {
-        guard let selectedWindow = viewModel.selectedWindow else {
-            return nil
-        }
-        
-        guard let cgImage = viewModel.windowModel.streams.images[selectedWindow.fqn()] else {
-            return nil
-        }
-        let uiImage = NSImage(cgImage: cgImage, size: .zero)
-        return Image(nsImage: uiImage)
-    }
-}
-
-#Preview {
-    ContentView()
 }
