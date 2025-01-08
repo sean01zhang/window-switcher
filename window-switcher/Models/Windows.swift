@@ -29,33 +29,15 @@ struct Window : Hashable {
 class Windows {
     var windows: [Window]
     
-    private static func experimental() {
-        // Creating a SCStreamConfiguration object
-        let streamConfig = SCStreamConfiguration()
-                
-        // Set output resolution to 1080p
-        streamConfig.width = 1920
-        streamConfig.height = 1080
-
-        // Set the capture interval at 60 fps
-        streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(60))
-
-        // Hides cursor
-        streamConfig.showsCursor = false
-
-        // Enable audio capture
-        streamConfig.capturesAudio = true
-
-        // Set sample rate to 48000 kHz stereo
-        streamConfig.sampleRate = 48000
-        streamConfig.channelCount = 2
-    }
-    
     private static func getInitialWindows() -> [Window] {
         var windows: [Window] = []
         
         let apps = NSWorkspace.shared.runningApplications
         for app in apps {
+            // Skip window-switcher (itself).
+            if app.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier {
+                continue
+            }
             let axApp = AXUIElementCreateApplication(app.processIdentifier)
             
             var result: CFArray?

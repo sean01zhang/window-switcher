@@ -14,130 +14,69 @@ func SCWindowKey(window: SCWindow) -> String {
 
 // WindowStreams will hold a buffer of WindowStreams
 class WindowStreams {
-    var streams: [Window: WindowStream] = [:]
+    private var windowMap: [Window: SCWindow] = [:]
     
-    init() {}
-    
-    // createStreams creates streams for each window in windows.
-    func createStreams(for windows: [Window]) {
+    init(_ windows: [Window]) {
         Task {
             do {
-                let content = try await SCShareableContent.excludingDesktopWindows(
-                    false,
-                    onScreenWindowsOnly: true
-                )
-                
-                var fqnToWindow : [String : Window] = [:]
-                for window in windows {
-                    fqnToWindow[window.fqn()] = window
-                }
-                
-                for scWindow in content.windows {
-                    let key = SCWindowKey(window: scWindow)
-                    if let window = fqnToWindow[key] {
-                        streams[window] = WindowStream(for: scWindow)
-                    }
-                }
-            } catch {
-                exit(EXIT_FAILURE)
+                windowMap = try await getInitialMap(for: windows)
+            } catch let err {
+                print("error: get initial map: \(err)")
+                exit(1)
             }
         }
     }
-}
-
-// WindowStream should handle occassional image updates & stream open/closing
-class WindowStream : NSObject, SCStreamOutput, SCStreamDelegate {
-    private var stream : SCStream?
-    private let videoSampleBufferQueue = DispatchQueue(label: "com.example.apple-samplecode.VideoSampleBufferQueue")
     
-    @Published var capturedImage: CGImage?
-    
-    private var timer: Timer?
-    
-    // init starts the WindowStream.
-    init(for window: SCWindow) {
-        self.stream = nil
-        self.timer = nil
-        super.init()
-
-        Task {
-            do {
-                self.stream = try await newStream(for: window)
-            } catch {
-                print("Why would you fail here?")
-            }
-        }
-    }
-
-    func startUpdates() {
-        if timer == nil {
-            timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
-                // Update image by capturing stream.
-                DispatchQueue.main.async {
-                    Task {
-                        do {
-                            try await self.stream?.startCapture()
-                            try await self.stream?.stopCapture()
-                        } catch {
-                            print("failed to create capture")
-                        }
-                    }
-                }
-            }
-            timer?.fire()
-        } else {
-            print("Timer not nil?")
-        }
-    }
-    
-    func stopUpdates() {
-        if timer != nil {
-            timer?.invalidate()
-            timer = nil
-        }
-    }
-        
-    // newStream creates a new SCStream from an SCWindow provided, and
-    // sets the streams delegate to itself.
-    private func newStream(for window: SCWindow) async throws -> SCStream {
+    private static func getImage(for window: SCWindow) async throws -> CGImage {
         let streamConfig = SCStreamConfiguration()
         
         // Set output resolution to a small size
         streamConfig.width = Int(window.frame.width)
         streamConfig.height = Int(window.frame.height)
 
-        // Set the capture interval at 60 fps
+        // Set the capture interval to get only one frame
         streamConfig.minimumFrameInterval = .invalid
         streamConfig.showsCursor = true
         streamConfig.capturesAudio = false
         streamConfig.backgroundColor = CGColor.clear
         streamConfig.ignoreShadowsSingleWindow = false
         streamConfig.pixelFormat = kCVPixelFormatType_32BGRA // Get an alpha channel.
-
+        
         let filter = SCContentFilter(desktopIndependentWindow: window)
-        
-        // Create a capture stream with the filter and stream configuration
-        let stream = SCStream(filter: filter, configuration: streamConfig, delegate: self)
-        
-        // Add a stream output to capture screen content.
-        try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoSampleBufferQueue)
-            
-        return stream
+        return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: streamConfig)
+    }
+
+    public func refresh(_ windows: [Window]) async throws {
+        windowMap = try await getInitialMap(for: windows)
     }
     
-    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard let pixelBuffer = sampleBuffer.imageBuffer else {
-            return
+    public func getWindowPreview(for window: Window) async throws -> CGImage? {
+        if let w = windowMap[window] {
+            return try await WindowStreams.getImage(for: w)
+        } else {
+            return nil
         }
-
-        var cgImage: CGImage?
-        VTCreateCGImageFromCVPixelBuffer(pixelBuffer, options: nil, imageOut: &cgImage)
-        guard let cgImage else {
-            return
+    }
+    
+    private func getInitialMap(for windows: [Window]) async throws -> [Window: SCWindow] {
+        let content = try await SCShareableContent.excludingDesktopWindows(
+            false,
+            onScreenWindowsOnly: true
+        )
+        
+        var fqnToWindow : [String : Window] = [:]
+        for window in windows {
+            fqnToWindow[window.fqn()] = window
         }
-
-        DispatchQueue.main.async {
-            self.capturedImage = cgImage
+            
+        var windowMap : [Window: SCWindow] = [:]
+        for scWindow in content.windows {
+            let key = SCWindowKey(window: scWindow)
+            if let window = fqnToWindow[key] {
+                windowMap[window] = scWindow
+            }
         }
+        
+        return windowMap
     }
 }

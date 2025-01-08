@@ -8,8 +8,7 @@
 import SwiftUI
 
 struct WindowImageView: View {
-//    @Binding var cgImage: CGImage?
-    @Binding var windowStream: WindowStream?
+    @Binding var cgImage: CGImage?
     
     var body: some View {
         HStack {
@@ -30,7 +29,7 @@ struct WindowImageView: View {
     }
     
     func selectedImage() -> Image? {
-        if let img = windowStream?.capturedImage {
+        if let img = cgImage {
             let uiImage = NSImage(cgImage: img, size: .zero)
             return Image(nsImage: uiImage)
         }
