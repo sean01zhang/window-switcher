@@ -6,7 +6,6 @@
 //
 
 import AppKit
-import ScreenCaptureKit
 
 struct Window : Hashable {
     var id: Int

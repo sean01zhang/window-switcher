@@ -6,7 +6,6 @@
 //
 
 import ScreenCaptureKit
-import VideoToolbox
 
 func SCWindowKey(window: SCWindow) -> String {
     "\(window.owningApplication?.applicationName ?? ""): \(window.title ?? "")"
