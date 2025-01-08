@@ -7,7 +7,7 @@
 
 import AppKit
 
-struct Window {
+struct Window : Hashable {
     var id: Int
     var appName: String
     var appPID: Int32
@@ -15,6 +15,10 @@ struct Window {
     var name: String
     
     var element: AXUIElement
+    
+    func hash(into hasher: inout Hasher) {
+        return element.hash(into: &hasher)
+    }
     
     func fqn() -> String {
         "\(appName): \(name)"
@@ -29,6 +33,10 @@ class Windows {
         
         let apps = NSWorkspace.shared.runningApplications
         for app in apps {
+            // Skip window-switcher (itself).
+            if app.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier {
+                continue
+            }
             let axApp = AXUIElementCreateApplication(app.processIdentifier)
             
             var result: CFArray?

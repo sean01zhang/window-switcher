@@ -9,28 +9,54 @@ import SwiftUI
 
 class ContentViewModel: ObservableObject {
     var windowModel: Windows = Windows()
+    var streamModel: WindowStreams
     
-    @Published var searchText: String = ""
+    @Published var searchText: String = "" {
+        didSet {
+            search()
+        }
+    }
     var windows: [Window]
-    
-    @Published var selectedWindow: Window? = nil
-    var selectedWindowIndex = -1
-    
+
+    @Published var selectedWindowIndex = -1 {
+        didSet {
+            if selectedWindowIndex == -1 {
+                selectedWindow = nil
+                selectedWindowPreview = nil
+            } else {
+                selectedWindow = windows[selectedWindowIndex]
+                
+                DispatchQueue.main.async {
+                    Task {
+                        do {
+                            self.selectedWindowPreview = try await self.streamModel.getWindowPreview(for: self.windows[self.selectedWindowIndex])
+                        } catch let err {
+                            print("error: get window preview: \(err)")
+                            exit(1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    var selectedWindow: Window?
+    @Published var selectedWindowPreview: CGImage?
+
     init() {
         // Search on empty string to start.
         windows = windowModel.search("")
-    }
-    
-    private func updateSelectedWindowAsync(_ window: Window) {
-        DispatchQueue.main.async {
-            self.selectedWindow = window
-        }
+        streamModel = WindowStreams(windowModel.windows)
     }
     
     private func updateSearchTextAsync(_ text: String) {
         DispatchQueue.main.async {
             self.searchText = text
-            self.windows = self.windowModel.search(text)
+        }
+    }
+    
+    private func updateSelectedWindowIndex(_ i: Int) {
+        DispatchQueue.main.async {
+            self.selectedWindowIndex = i
         }
     }
     
@@ -40,11 +66,10 @@ class ContentViewModel: ObservableObject {
     private func selectPreviousWindow() {
         let n = windows.count
         if selectedWindowIndex == -1 {
-            selectedWindowIndex = n - 1
+            updateSelectedWindowIndex(n - 1)
         } else {
-            selectedWindowIndex = (selectedWindowIndex + n - 1) % n
+            updateSelectedWindowIndex((selectedWindowIndex + n - 1) % n)
         }
-        updateSelectedWindowAsync(windows[selectedWindowIndex])
     }
     
     // selectNextWindow circularly selects the next window (i.e. it
@@ -53,19 +78,10 @@ class ContentViewModel: ObservableObject {
     private func selectNextWindow() {
         let n = windows.count
         if selectedWindowIndex == -1 {
-            selectedWindowIndex = 0
+            updateSelectedWindowIndex(0)
         } else {
-            selectedWindowIndex = (selectedWindowIndex + 1) % n
+            updateSelectedWindowIndex((selectedWindowIndex + 1) % n)
         }
-        updateSelectedWindowAsync(windows[selectedWindowIndex])
-    }
-    
-    // selectWindow sets the currently selected window to the window provided.
-    func selectWindow(_ window: Window) {
-        for i in windows.indices where windows[i].id == window.id {
-            selectedWindowIndex = i
-        }
-        updateSelectedWindowAsync(windows[selectedWindowIndex])
     }
     
     // toogleWindow brings the window to the foreground and switches to it.
@@ -111,31 +127,27 @@ class ContentViewModel: ObservableObject {
         return KeyPress.Result.handled
     }
     
-    // isSelected returns true if the window provided is selected.
-    func isSelected(_ window: Window) -> Bool {
-        guard let selectedWindow else {
-            return false
-        }
-        return selectedWindow.id == window.id
-    }
-    
     // search filters the windows that match the searchText.
-    func search() {
+    private func search() {
         windows = windowModel.search(searchText)
         
         // Update selection to stay within bounds.
-        selectedWindowIndex = min(windows.count - 1, max(selectedWindowIndex, 0))
-        guard selectedWindowIndex >= 0 else {
-            selectedWindow = nil
-            return
-        }
-        updateSelectedWindowAsync(windows[selectedWindowIndex])
+        updateSelectedWindowIndex(min(windows.count - 1, max(selectedWindowIndex, 0)))
     }
    
     // refresh gets all open windows, clears the search text and the window filter.
     func refresh() {
         windowModel.refreshWindows()
         updateSearchTextAsync("")
-        search()
+        Task {
+            do {
+                try await streamModel.refresh(windowModel.windows)
+                // Trigger index update once streams are refreshed.
+                updateSelectedWindowIndex(self.selectedWindowIndex)
+            } catch let err {
+                print("error: refresh streamModel \(err)")
+                exit(1)
+            }
+        }
     }
 }
