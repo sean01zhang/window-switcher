@@ -18,9 +18,7 @@ Window Switcher is a simple searchable window switcher for macOS.
 
 ## Features
 
-- [-] Search for windows
-    - [x] Simple string matching
-    - [ ] Fuzzy-find (levenstein distance)
+- [x] Fuzzy-search for windows
 - [x] Switch to windows
 - [x] List windows in current space
 - [ ] List windows in all spaces
