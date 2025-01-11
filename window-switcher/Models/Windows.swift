@@ -89,18 +89,18 @@ class Windows {
             return windows
         }
         
-        var results: [(Int, Window)] = []
+        var results: [(Int16, Window)] = []
         
         // Search through windows for anything that has the query as a substring.
         for window in windows {
-            if window.fqn().lowercased().contains(query.lowercased()) {
-                let score = abs(window.fqn().lengthOfBytes(using: .utf8) - query.lengthOfBytes(using: .utf8))
+            let score = FuzzyCompare(query.lowercased(), window.fqn().lowercased())
+            if score != 0 {
                 results.append((score, window))
             }
         }
         
         // Sort and return just the windows, without the score.
-        results.sort(by: { $0.0 < $1.0 })
+        results.sort(by: { $0.0 > $1.0 })
         return results.map(\.1)
     }
     

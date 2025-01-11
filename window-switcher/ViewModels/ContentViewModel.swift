@@ -120,6 +120,7 @@ class ContentViewModel: ObservableObject {
             } else {
                 selectNextWindow()
             }
+            break
         default:
             return KeyPress.Result.ignored
         }
@@ -132,7 +133,8 @@ class ContentViewModel: ObservableObject {
         windows = windowModel.search(searchText)
         
         // Update selection to stay within bounds.
-        updateSelectedWindowIndex(min(windows.count - 1, max(selectedWindowIndex, 0)))
+        // Reset selection to top since the search query changed.
+        updateSelectedWindowIndex(min(windows.count - 1, 0))
     }
    
     // refresh gets all open windows, clears the search text and the window filter.
@@ -143,7 +145,7 @@ class ContentViewModel: ObservableObject {
             do {
                 try await streamModel.refresh(windowModel.windows)
                 // Trigger index update once streams are refreshed.
-                updateSelectedWindowIndex(self.selectedWindowIndex)
+                updateSelectedWindowIndex(0)
             } catch let err {
                 print("error: refresh streamModel \(err)")
                 exit(1)
