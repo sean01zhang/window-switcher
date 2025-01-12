@@ -11,7 +11,6 @@ struct Window : Hashable {
     var id: Int
     var appName: String
     var appPID: Int32
-    var index: Int
     var name: String
     
     var element: AXUIElement
@@ -25,41 +24,119 @@ struct Window : Hashable {
     }
 }
 
+// getWindowName gets the title attribute of a provided AXUIElement.
+func getWindowName(element: AXUIElement) -> String? {
+    var titleRef: CFTypeRef?
+    let err = AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &titleRef)
+    if err == .success, let t = titleRef as? String {
+        return t
+    } else {
+        return nil
+    }
+}
+
+// handleObserverEvent is a handler for AXUI events.
+func handleObserverEvent(observer: AXObserver, element: AXUIElement, notification: CFString, context: UnsafeMutableRawPointer?) -> Void {
+    guard let context = context else {
+        print("context is nil in callback!") // Crucial check
+        return
+    }
+    let observerSelf = Unmanaged<Windows>.fromOpaque(context).takeUnretainedValue()
+    
+    switch String(notification) {
+    case kAXTitleChangedNotification:
+        let windowIdx = observerSelf.windows.firstIndex(where: { $0.element == element })
+        guard let windowIdx = windowIdx else {
+            print("window not found in windows when handling title change")
+            return
+        }
+        observerSelf.windows[windowIdx].name = getWindowName(element: element)!
+        break
+    case kAXCreatedNotification:
+        let (appPID, _) = observerSelf.applicationObservers.first(where: { $0.value == observer })!
+        if let app = NSRunningApplication(processIdentifier: appPID), let title = getWindowName(element: element) {
+            let window = Window(id: element.hashValue, appName: app.localizedName ?? "Unknown", appPID: app.processIdentifier, name: title, element: element)
+            observerSelf.windows.append(window)
+        }
+        break
+    case kAXUIElementDestroyedNotification:
+        observerSelf.windows.removeAll(where: { $0.element == element })
+        break
+    default:
+        print("Error: unexpected notification from switch statement")
+        exit(1)
+    }
+}
+
+func getAppsExcludingWindowSwitcher() -> [NSRunningApplication] {
+    return NSWorkspace.shared.runningApplications.filter({ $0.processIdentifier != getpid() })
+}
+
 class Windows {
     var windows: [Window]
+    private var observer: AXObserver? = nil
+    var applicationObservers: [Int32: AXObserver?] = [:]
     
-    private static func getInitialWindows() -> [Window] {
+    private static func getInitialWindows(_ apps: [NSRunningApplication]) -> [Window] {
         var windows: [Window] = []
         
-        let apps = NSWorkspace.shared.runningApplications
         for app in apps {
-            // Skip window-switcher (itself).
-            if app.processIdentifier == NSWorkspace.shared.frontmostApplication?.processIdentifier {
-                continue
-            }
             let axApp = AXUIElementCreateApplication(app.processIdentifier)
             
             var result: CFArray?
             let err = AXUIElementCopyAttributeValues(axApp, kAXWindowsAttribute as CFString, 0, 100, &result)
             // If successfully copied values, conditionally cast to an array of elements.
             if err == .success, let axWindows = result as? [AXUIElement] {
-                for (i, axWindow) in axWindows.enumerated() {
+                for axWindow in axWindows {
                     // Get window title.
-                    var titleRef: CFTypeRef?
-                    var title: String
-                    let err = AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleRef)
-                    if err == .success, let t = titleRef as? String {
-                        title = t
-                    } else {
+                    guard let title = getWindowName(element: axWindow) else {
                         continue
                     }
                     
-                    windows.append(Window(id: axWindow.hashValue, appName: app.localizedName ?? "Unknown", appPID: app.processIdentifier, index: i, name: title, element: axWindow))
+                    windows.append(Window(id: axWindow.hashValue, appName: app.localizedName ?? "Unknown", appPID: app.processIdentifier, name: title, element: axWindow))
                 }
             }
         }
         
         return windows
+    }
+    
+    private func startObserving(apps: [NSRunningApplication]) {
+        for app in apps {
+            var observer: AXObserver?
+            let err = AXObserverCreate(app.processIdentifier, handleObserverEvent, &observer)
+            if err != .success {
+                print("Failed to create observer")
+                return
+            }
+            guard let observer = observer else {
+                print("Observer is nil")
+                exit(1)
+            }
+            
+            // Attach observer to the lifecycle of this struct.
+            applicationObservers[app.processIdentifier] = observer
+            
+            let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+            let element = AXUIElementCreateApplication(app.processIdentifier)
+            
+            // Add notifications to observe.
+            let notifications = [
+                kAXTitleChangedNotification,
+                kAXCreatedNotification,
+                kAXUIElementDestroyedNotification
+            ]
+            for notification in notifications {
+                let err = AXObserverAddNotification(observer, element, notification as CFString, selfPtr)
+                if err != .success {
+                    #if DEBUG
+                    print("err: AXObserver failed to add notification \(notification)")
+                    #endif
+                }
+            }
+            
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+        }
     }
     
     public static func select(_ window: Window) {
@@ -104,11 +181,40 @@ class Windows {
         return results.map(\.1)
     }
     
-    init() {
-        windows = Windows.getInitialWindows()
+    public func refreshWindows() {
+        let apps = getAppsExcludingWindowSwitcher()
+        
+        // Get apps that have been closed, and apps that are new.
+        var deleteObservers = applicationObservers
+        var addApps : [NSRunningApplication] = []
+        for app in apps {
+            let pid = app.processIdentifier
+            if applicationObservers.keys.contains(pid) {
+                deleteObservers.removeValue(forKey: pid)
+            } else {
+                addApps.append(app)
+            }
+        }
+        
+        // Clean up observers in deleteObservers
+        for (pid, observer) in deleteObservers {
+            if let observer = observer {
+                CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+            }
+            applicationObservers.removeValue(forKey: pid)
+            
+            // Remove windows associated with this app.
+            windows = windows.filter { $0.appPID != pid }
+        }
+        
+        // Add new windows for new apps
+        windows.append(contentsOf: Windows.getInitialWindows(addApps))
+        startObserving(apps: addApps)
     }
     
-    public func refreshWindows() {
-        windows = Windows.getInitialWindows()
+    init() {
+        let apps = getAppsExcludingWindowSwitcher()
+        windows = Windows.getInitialWindows(apps)
+        startObserving(apps: apps)
     }
 }
