@@ -12,10 +12,13 @@ Window Switcher is a simple searchable window switcher for macOS.
 
 ## Installation
 
-1. Open the app.
-2. Give accessibility and screen recording permissions.
-   - The app needs accessibility to get all windows and focus windows in the active space.
-   - The app needs screen recording to get the window previews.
+### Manually
+
+1. Go to releases and download the latest version. The zip (`window-switcher-v#.#.#.zip`) can be found under the assets section.
+2. Unzip the downloaded file. It is recommended to move the app to the Applications folder.
+3. Open the app. You may need to give the app permissions to access accessibility and screen recording. 
+  - The app needs accessibility to get all windows and focus windows in the active space.
+  - The app needs screen recording to get the window previews.
 
 ## Features
 
@@ -24,3 +27,4 @@ Window Switcher is a simple searchable window switcher for macOS.
 - [x] List windows in current space
 - [ ] List windows in all spaces
 - [x] Get window previews
+- [ ] User-defined hotkey bindings
