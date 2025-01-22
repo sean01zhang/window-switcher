@@ -145,7 +145,24 @@ class ContentViewModel: ObservableObject {
             do {
                 try await streamModel.refresh(windowModel.windows)
                 // Trigger index update once streams are refreshed.
-                updateSelectedWindowIndex(0)
+                updateSelectedWindowIndex(min(0, windows.count - 1))
+            } catch let err {
+                print("error: refresh streamModel \(err)")
+                exit(1)
+            }
+        }
+    }
+    
+    // fullRefresh reindexes all windows from scratch.
+    func fullRefresh() {
+        windowModel.fullRefreshWindows()
+        // Search on empty string to start.
+        updateSearchTextAsync("")
+        Task {
+            do {
+                try await streamModel.refresh(windowModel.windows)
+                // Trigger index update once streams are refreshed.
+                updateSelectedWindowIndex(min(0, windows.count - 1))
             } catch let err {
                 print("error: refresh streamModel \(err)")
                 exit(1)

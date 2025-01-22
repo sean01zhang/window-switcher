@@ -212,6 +212,13 @@ class Windows {
         startObserving(apps: addApps)
     }
     
+    public func fullRefreshWindows() {
+        let apps = getAppsExcludingWindowSwitcher()
+        windows.removeAll()
+        windows.append(contentsOf: Windows.getInitialWindows(apps))
+        startObserving(apps: apps)
+    }
+    
     init() {
         let apps = getAppsExcludingWindowSwitcher()
         windows = Windows.getInitialWindows(apps)
