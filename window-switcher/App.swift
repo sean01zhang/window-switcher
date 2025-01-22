@@ -20,7 +20,6 @@ extension Notification.Name {
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: Any?
     private var statusBarItem: NSStatusItem?
-    private var popover: NSPopover?
     var mainWindow: NSWindow?
     
     func setupStatusBar() {
