@@ -10,7 +10,6 @@ import SwiftUI
 struct SearchBarView: View {
     @Binding var searchText: String
     @FocusState private var isFocused: Bool
-    @State private var focusTextField = false
     let searchPrompt: String
     let height: CGFloat = 25
     
