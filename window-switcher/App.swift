@@ -11,9 +11,62 @@ import Carbon
 // periphery:ignore
 var activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Prevent App Nap to preserve responsiveness")
 
+let versionIdentifier = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+
+extension Notification.Name {
+    static let restartWindowSwitcher = Notification.Name("restartWindowSwitcher")
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: Any?
-
+    private var statusBarItem: NSStatusItem?
+    private var popover: NSPopover?
+    var mainWindow: NSWindow?
+    
+    func setupStatusBar() {
+        statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusBarItem?.button {
+            button.target = self
+            button.title = "WS"
+        }
+        
+        let menu = NSMenu()
+        let topicItem = NSMenuItem(title: "Window Switcher (v\(versionIdentifier))", action: nil, keyEquivalent: "")
+        let gitHubMenuItem = NSMenuItem(title: "Report an Issue", action: #selector(openGitHub), keyEquivalent: "")
+        let activateMenuItem = NSMenuItem(title: "Open Switcher", action: #selector(activateOverlay(_:)), keyEquivalent: "\t")
+        activateMenuItem.keyEquivalentModifierMask = .option
+        let refreshMenuItem = NSMenuItem(title: "Refresh Windows", action: #selector(refreshWindowsClicked(_:)), keyEquivalent: "r")
+        let quitMenuItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.shared.terminate(_:)), keyEquivalent: "q")
+       
+        menu.addItem(topicItem)
+        menu.addItem(gitHubMenuItem)
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(activateMenuItem)
+        menu.addItem(refreshMenuItem)
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(quitMenuItem)
+        
+        statusBarItem?.menu = menu
+    }
+    
+    @objc func activateOverlay(_ sender: NSStatusBarButton) {
+        self.mainWindow?.styleMask.update(with: .titled)
+        self.mainWindow?.makeKeyAndOrderFront(nil)
+        self.mainWindow?.styleMask.remove(.titled)
+        self.activateApp()
+    }
+    
+    @objc func refreshWindowsClicked(_ sender: NSStatusBarButton) {
+        NotificationCenter.default.post(name: .restartWindowSwitcher, object: nil)
+    }
+    
+    @objc func openGitHub(_ sender: NSStatusBarButton) {
+        guard let url = URL(string: "https://github.com/sean01zhang/window-switcher/issues") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+    
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Get window and make it borderless.
         if let window = NSApplication.shared.windows.first {
@@ -21,10 +74,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.backgroundColor = .clear
             window.styleMask = [.borderless]
             window.center()
+            self.mainWindow = window
         }
         
         NSApp.setActivationPolicy(.accessory)
         registerHotKey()
+        setupStatusBar()
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
@@ -38,7 +93,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard event.modifierFlags.contains(mask),
                   event.keyCode == keyCode else { return }
-
+            
+            // TODO: Find a better way to deal with focus problems
+            self?.mainWindow?.styleMask.update(with: .titled)
+            self?.mainWindow?.makeKeyAndOrderFront(nil)
+            self?.mainWindow?.styleMask.remove(.titled)
             self?.activateApp()
         }
     }
@@ -68,6 +127,5 @@ struct window_switcherApp: App {
                     NSApplication.shared.hide(self)
                 }
         }
-        
     }
 }

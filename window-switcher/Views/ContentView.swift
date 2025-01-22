@@ -56,5 +56,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             viewModel.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .restartWindowSwitcher)) { _ in
+            #if DEBUG
+                print("DEBUG: Restarting window switcher...")
+            #endif
+            viewModel.fullRefresh()
+        }
     }
 }
