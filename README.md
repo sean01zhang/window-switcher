@@ -6,9 +6,9 @@ Window Switcher is a simple searchable window switcher for macOS.
 
 ## Usage
 
-> **Note**
->  - The app needs accessibility to get all windows and focus windows in the active space.
->  - The app needs screen recording to get the window previews.
+> [!Note]
+> The app needs accessibility to get all windows and focus windows in the active space, and
+> needs screen recording to get the window previews.
 
 1. Use hotkey (option + tab) to open the window switcher.
 2. Type to search for a window, or use arrow keys to move your selection.
