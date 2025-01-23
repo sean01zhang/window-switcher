@@ -69,7 +69,7 @@ func handleObserverEvent(observer: AXObserver, element: AXUIElement, notificatio
 }
 
 func getAppsExcludingWindowSwitcher() -> [NSRunningApplication] {
-    return NSWorkspace.shared.runningApplications.filter({ $0.processIdentifier != getpid() })
+    return NSWorkspace.shared.runningApplications.filter({ $0.processIdentifier != getpid() && $0.activationPolicy == .regular })
 }
 
 class Windows {
