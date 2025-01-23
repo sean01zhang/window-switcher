@@ -68,8 +68,8 @@ func handleObserverEvent(observer: AXObserver, element: AXUIElement, notificatio
     }
 }
 
-func getAppsExcludingWindowSwitcher() -> [NSRunningApplication] {
-    return NSWorkspace.shared.runningApplications.filter({ $0.processIdentifier != getpid() && $0.activationPolicy == .regular })
+func getApps() -> [NSRunningApplication] {
+    return NSWorkspace.shared.runningApplications.filter({ $0.activationPolicy == .regular })
 }
 
 class Windows {
@@ -182,7 +182,7 @@ class Windows {
     }
     
     public func refreshWindows() {
-        let apps = getAppsExcludingWindowSwitcher()
+        let apps = getApps()
         
         // Get apps that have been closed, and apps that are new.
         var deleteObservers = applicationObservers
@@ -213,14 +213,14 @@ class Windows {
     }
     
     public func fullRefreshWindows() {
-        let apps = getAppsExcludingWindowSwitcher()
+        let apps = getApps()
         windows.removeAll()
         windows.append(contentsOf: Windows.getInitialWindows(apps))
         startObserving(apps: apps)
     }
     
     init() {
-        let apps = getAppsExcludingWindowSwitcher()
+        let apps = getApps()
         windows = Windows.getInitialWindows(apps)
         startObserving(apps: apps)
     }
