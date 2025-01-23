@@ -6,15 +6,15 @@ Window Switcher is a simple searchable window switcher for macOS.
 
 ## Usage
 
-2. Use hotkey (option + tab) to open the window switcher.
-3. Type to search for a window, or use arrow keys to move your selection.
-4. Press `enter` to switch to the selected window.
-
-## Installation
-
-> Note: 
+> **Note**
 >  - The app needs accessibility to get all windows and focus windows in the active space.
 >  - The app needs screen recording to get the window previews.
+
+1. Use hotkey (option + tab) to open the window switcher.
+2. Type to search for a window, or use arrow keys to move your selection.
+3. Press `enter` to switch to the selected window.
+
+## Installation
 
 ### Homebrew
 
