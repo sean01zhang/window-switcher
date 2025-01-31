@@ -1,0 +1,26 @@
+# This workflow will build Window Switcher and notarize it for distribution.
+name: Deploy Window Switcher
+
+on:
+  push:
+    branches: [ "main" ]
+  # below is for experiemnting
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: xcodebuild build
+    - name: Notarize
+      run: |
+        APP_LOCATION=build/Release/window-switcher.app
+        xcrun notarytool submit 
+          --apple-id ${{ secrets.APPLE_ACCOUNT_ID }}
+          --team-id ${{ secrets.APPLE_TEAM_ID }}
+          --password ${{ secrets.APPLE_ACCOUNT_PASSWORD }}
