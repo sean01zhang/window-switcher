@@ -130,11 +130,13 @@ class ContentViewModel: ObservableObject {
     
     // search filters the windows that match the searchText.
     private func search() {
-        windows = windowModel.search(searchText)
-        
-        // Update selection to stay within bounds.
-        // Reset selection to top since the search query changed.
-        updateSelectedWindowIndex(min(windows.count - 1, 0))
+        DispatchQueue.main.async {
+            self.windows = self.windowModel.search(self.searchText)
+            
+            // Update selection to stay within bounds.
+            // Reset selection to top since the search query changed.
+            self.selectedWindowIndex = min(0, self.windows.count - 1)
+        }
     }
    
     // refresh gets all open windows, clears the search text and the window filter.

@@ -19,13 +19,13 @@ func FuzzyCompare(_ string1: String, _ string2: String) -> Int16 {
         for (j, c2) in string2.enumerated() {
             // Shadow the index since the matrix requires the first row to be zeroed out.
             let j = j + 1
+            let isFirst = i == 1 && j == 1
                     
             // This is a simplification due to our choice of a linear gap penalty.
             H[i][j] = max(
-                H[i - 1][j - 1] + (j == 1 && i == 1 ? 2 : 1) * score(c1, c2), // Add bias if first character is a match.
+                H[i - 1][j - 1] + (isFirst ? 2 : 1) * score(c1, c2), // Add bias if first character is a match.
                 H[i - 1][j] - 1 * gapPenaltyMultiplier,
-                H[i][j - 1] - 1 * gapPenaltyMultiplier,
-                0
+                H[i][j - 1] - 1 * gapPenaltyMultiplier
             )
             
             highestScore = max(highestScore, H[i][j])
@@ -36,7 +36,7 @@ func FuzzyCompare(_ string1: String, _ string2: String) -> Int16 {
     return highestScore
 }
 
-let gapPenaltyMultiplier = Int16(1)
+let gapPenaltyMultiplier = Int16(6)
 
 // gapPenalty determines the penalty of having a gap in the string match in the smith-waterman algorithm.
 func gapPenalty(_ distance: Int) -> Int {
