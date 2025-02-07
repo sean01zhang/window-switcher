@@ -50,7 +50,13 @@ func handleObserverEvent(observer: AXObserver, element: AXUIElement, notificatio
             print("window not found in windows when handling title change")
             return
         }
-        observerSelf.windows[windowIdx].name = getWindowName(element: element)!
+        guard let newName = getWindowName(element: element) else {
+            print("Error: could not get new name for window")
+            observerSelf.windows.remove(at: windowIdx)
+            return
+        }
+        
+        observerSelf.windows[windowIdx].name = newName
         break
     case kAXCreatedNotification:
         let (appPID, _) = observerSelf.applicationObservers.first(where: { $0.value == observer })!
@@ -171,7 +177,7 @@ class Windows {
         // Search through windows for anything that has the query as a substring.
         for window in windows {
             let score = FuzzyCompare(query.lowercased(), window.fqn().lowercased())
-            if score != 0 {
+            if score > 3 {
                 results.append((score, window))
             }
         }
