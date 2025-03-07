@@ -62,7 +62,10 @@ func handleObserverEvent(observer: AXObserver, element: AXUIElement, notificatio
         let (appPID, _) = observerSelf.applicationObservers.first(where: { $0.value == observer })!
         if let app = NSRunningApplication(processIdentifier: appPID), let title = getWindowName(element: element) {
             let window = Window(id: element.hashValue, appName: app.localizedName ?? "Unknown", appPID: app.processIdentifier, name: title, element: element)
-            observerSelf.windows.append(window)
+            // Check if window is already in windows list.
+            if !observerSelf.windows.contains(window) {
+                observerSelf.windows.append(window)
+            }
         }
         break
     case kAXUIElementDestroyedNotification:
