@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 import Carbon
 
 // periphery:ignore
@@ -21,6 +22,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: Any?
     private var statusBarItem: NSStatusItem?
     var mainWindow: NSWindow?
+
+    private func ensureAccessibilityPermission() {
+        if !AccessibilityPermissions.ensurePrompt() {
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permission Required"
+            alert.informativeText = "Window Switcher needs accessibility access to display open windows."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "Quit")
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                AccessibilityPermissions.openSystemSettings()
+            }
+            NSApp.terminate(nil)
+        }
+    }
     
     func setupStatusBar() {
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -67,6 +84,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        ensureAccessibilityPermission()
+
         // Get window and make it borderless.
         if let window = NSApplication.shared.windows.first {
             window.level = .popUpMenu
