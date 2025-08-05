@@ -14,9 +14,13 @@ struct Window : Hashable {
     var name: String
     
     var element: AXUIElement
-    
+
     func hash(into hasher: inout Hasher) {
         return element.hash(into: &hasher)
+    }
+
+    static func == (lhs: Window, rhs: Window) -> Bool {
+        return lhs.element == rhs.element
     }
     
     func fqn() -> String {
