@@ -19,7 +19,8 @@ extension Notification.Name {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var hotKeyMonitor: Any?
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
     private var statusBarItem: NSStatusItem?
     var mainWindow: NSWindow?
 
@@ -65,11 +66,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusBarItem?.menu = menu
     }
     
-    @objc func activateOverlay(_ sender: NSStatusBarButton) {
+    private func showWindowSwitcher() {
         self.mainWindow?.styleMask.update(with: .titled)
         self.mainWindow?.makeKeyAndOrderFront(nil)
         self.mainWindow?.styleMask.remove(.titled)
         self.activateApp()
+    }
+
+    @objc func activateOverlay(_ sender: NSStatusBarButton) {
+        showWindowSwitcher()
     }
     
     @objc func refreshWindowsClicked(_ sender: NSStatusBarButton) {
@@ -105,24 +110,42 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func registerHotKey() {
-        let mask: NSEvent.ModifierFlags = [.option]
-        let keyCode = kVK_Tab
-        self.hotKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard event.modifierFlags.contains(mask),
-                  event.keyCode == keyCode else { return }
-            
-            // TODO: Find a better way to deal with focus problems
-            self?.mainWindow?.styleMask.update(with: .titled)
-            self?.mainWindow?.makeKeyAndOrderFront(nil)
-            self?.mainWindow?.styleMask.remove(.titled)
-            self?.activateApp()
+        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        eventTap = CGEvent.tapCreate(tap: .cgSessionEventTap,
+                                     place: .headInsertEventTap,
+                                     options: .defaultTap,
+                                     eventsOfInterest: mask,
+                                     callback: { _, type, event, userInfo in
+            guard type == .keyDown else {
+                return Unmanaged.passRetained(event)
+            }
+            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            let flags = NSEvent.ModifierFlags(rawValue: event.flags.rawValue)
+            if keyCode == kVK_Tab && flags.contains(.option) {
+                let delegate = Unmanaged<AppDelegate>.fromOpaque(userInfo!).takeUnretainedValue()
+                // TODO: Find a better way to deal with focus problems
+                delegate.showWindowSwitcher()
+                return nil
+            }
+            return Unmanaged.passRetained(event)
+        }, userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()))
+
+        if let eventTap = eventTap {
+            runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+            CGEvent.tapEnable(tap: eventTap, enable: true)
         }
     }
 
     private func unregisterHotKey() {
-        if let monitor = self.hotKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-            hotKeyMonitor = nil
+        if let eventTap = eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
+            if let runLoopSource = runLoopSource {
+                CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+            }
+            self.runLoopSource = nil
+            self.eventTap = nil
         }
     }
 
