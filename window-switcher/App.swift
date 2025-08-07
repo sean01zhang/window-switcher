@@ -121,10 +121,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
             let flags = NSEvent.ModifierFlags(rawValue: event.flags.rawValue)
-            if keyCode == kVK_Tab && flags.contains(.option) {
+            if keyCode == kVK_Tab &&
+                flags.intersection(.deviceIndependentFlagsMask) == .option {
                 let delegate = Unmanaged<AppDelegate>.fromOpaque(userInfo!).takeUnretainedValue()
-                // TODO: Find a better way to deal with focus problems
-                delegate.showWindowSwitcher()
+                if delegate.mainWindow?.isKeyWindow == true {
+                    NSApp.hide(nil)
+                } else {
+                    delegate.showWindowSwitcher()
+                }
                 return nil
             }
             return Unmanaged.passRetained(event)
