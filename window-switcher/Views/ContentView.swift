@@ -21,20 +21,20 @@ struct ContentView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(viewModel.windows.indices, id: \.self) { i in
-                                WindowListItemView(window: viewModel.windows[i], isSelected: i == viewModel.selectedWindowIndex)
+                            ForEach(viewModel.items.indices, id: \.self) { i in
+                                ResultListItemView(item: viewModel.items[i], isSelected: i == viewModel.selectedIndex)
                                     .onTapGesture {
-                                        if i == viewModel.selectedWindowIndex {
-                                            viewModel.toggleSelectedWindow()
+                                        if i == viewModel.selectedIndex {
+                                            viewModel.toggleSelectedItem()
                                         } else {
-                                            viewModel.selectedWindowIndex = i
+                                            viewModel.selectedIndex = i
                                         }
                                     }
                                     .focusable()
                                     .focusEffectDisabled()
                             }
                         }
-                        .onChange(of: viewModel.selectedWindowIndex, initial: true) { _, new in
+                        .onChange(of: viewModel.selectedIndex, initial: true) { _, new in
                             guard new != -1 else { return }
                             withAnimation {
                                 proxy.scrollTo(new, anchor: .center)
@@ -47,7 +47,7 @@ struct ContentView: View {
                     WindowImageView(cgImage: $viewModel.selectedWindowPreview)
                 }.padding()
             }
-            SearchBarView(searchText: $viewModel.searchText, searchPrompt: "Search Windows")
+            SearchBarView(searchText: $viewModel.searchText, searchPrompt: "Search Windows or Apps")
         }
         .background(VisualEffect().clipShape(RoundedRectangle(cornerRadius: 16)))
         .onKeyPress() { key in

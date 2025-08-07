@@ -1,5 +1,5 @@
 //
-//  WindowListItemView.swift
+//  ResultListItemView.swift
 //  window-switcher
 //
 //  Created by Sean Zhang on 2024-12-27.
@@ -8,12 +8,12 @@
 import SwiftUI
 import AppKit
 
-struct WindowListItemView: View {
+struct ResultListItemView: View {
     @Environment(\.colorScheme) var colorScheme  // Get the system color scheme
-    let window: Window
+    let item: SearchItem
     let isSelected: Bool
     let fontSize: CGFloat = 14
-    
+
     func textColorForAccentColor() -> Color {
         // Calculate luminance of the accent color
         let accentColor = NSColor(Color.accentColor).usingColorSpace(.sRGB)!
@@ -28,10 +28,19 @@ struct WindowListItemView: View {
             return .black
         }
     }
-    
+
+    private func text() -> String {
+        switch item {
+        case .window(let w):
+            return w.fqn()
+        case .application(let app):
+            return "Open App: \(app.name)"
+        }
+    }
+
     var body: some View {
         HStack {
-            Text(window.fqn())
+            Text(text())
                 // Yes you need maxHeight AND maxWidth infinity to
                 // make the text box extend all the way.
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
