@@ -34,7 +34,7 @@ struct ResultListItemView: View {
         case .window(let w):
             return w.fqn()
         case .application(let app):
-            return app.name
+            return "Open App: \(app.name)"
         }
     }
 
