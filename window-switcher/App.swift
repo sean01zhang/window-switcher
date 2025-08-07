@@ -105,10 +105,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func registerHotKey() {
-        // TODO: Use a more modern approach to key listening
         let mask: NSEvent.ModifierFlags = [.option]
         let keyCode = kVK_Tab
-        hotKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        self.hotKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard event.modifierFlags.contains(mask),
                   event.keyCode == keyCode else { return }
             
@@ -121,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func unregisterHotKey() {
-        if let monitor = hotKeyMonitor {
+        if let monitor = self.hotKeyMonitor {
             NSEvent.removeMonitor(monitor)
             hotKeyMonitor = nil
         }

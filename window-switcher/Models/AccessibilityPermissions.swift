@@ -5,7 +5,8 @@ enum AccessibilityPermissions {
         if AXIsProcessTrusted() {
             return true
         }
-        let options: [CFString: Any] = [kAXTrustedCheckOptionPrompt: true]
+        
+        let options: [String: Bool] = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
         return AXIsProcessTrustedWithOptions(options as CFDictionary)
     }
 
