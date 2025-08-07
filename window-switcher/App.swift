@@ -120,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return Unmanaged.passRetained(event)
             }
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-            let flags = NSEvent.ModifierFlags(rawValue: event.flags.rawValue)
+            let flags = NSEvent.ModifierFlags(rawValue: UInt(event.flags.rawValue))
             if keyCode == kVK_Tab &&
                 flags.intersection(.deviceIndependentFlagsMask) == .option {
                 let delegate = Unmanaged<AppDelegate>.fromOpaque(userInfo!).takeUnretainedValue()
