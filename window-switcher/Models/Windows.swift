@@ -174,9 +174,9 @@ class Windows {
         }
     }
     
-    public func search(_ query: String) -> [Window] {
+    public func search(_ query: String) -> [(Int16, Window)] {
         if query.isEmpty {
-            return windows
+            return windows.map({ (0, $0) })
         }
         
         var results: [(Int16, Window)] = []
@@ -191,7 +191,8 @@ class Windows {
         
         // Sort and return just the windows, without the score.
         results.sort(by: { $0.0 > $1.0 })
-        return results.map(\.1)
+        return results
+        // return results.map(\.1)
     }
     
     public func refreshWindows() {

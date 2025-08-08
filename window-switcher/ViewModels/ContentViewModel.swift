@@ -52,7 +52,7 @@ class ContentViewModel: ObservableObject {
         applications = getInstalledApplications()
         streamModel = WindowStreams(windowModel.windows)
         // Search on empty string to start.
-        items = windowModel.search("").map { SearchItem.window($0) }
+        items = windowModel.search("").map { SearchItem.window($0.1) }
     }
 
     private func updateSearchTextAsync(_ text: String) {
@@ -144,7 +144,7 @@ class ContentViewModel: ObservableObject {
     // search filters the windows and apps that match the searchText.
     private func search() {
         DispatchQueue.main.async {
-            var results: [SearchItem] = self.windowModel.search(self.searchText).map { SearchItem.window($0) }
+            var resultScores: [(Int16, SearchItem)] = self.windowModel.search(self.searchText).map { ( $0.0, SearchItem.window($0.1) ) }
             if !self.searchText.isEmpty {
                 var appResults: [(Int16, Application)] = []
                 for app in self.applications {
@@ -153,9 +153,11 @@ class ContentViewModel: ObservableObject {
                         appResults.append((score, app))
                     }
                 }
-                appResults.sort(by: { $0.0 > $1.0 })
-                results.append(contentsOf: appResults.map { SearchItem.application($0.1) })
+                resultScores.append(contentsOf: appResults.map { ( $0.0, SearchItem.application($0.1))})
             }
+
+            resultScores.sort(by: { $0.0 > $1.0 })
+            let results = resultScores.map(\.1)
 
             self.items = results
             // Reset selection to top since the search query changed.
