@@ -30,6 +30,19 @@ brew install --cask sean01zhang/formulae/window-switcher
 2. Unzip the downloaded file. It is recommended to move the app to the Applications folder.
 3. Open the app. You may need to give the app permissions to access accessibility and screen recording. 
 
+## Upgrading
+
+> [!Warning]
+> Due to packaging limitations, you must **remove** any previously granted Accessibility and Screen Recording permissions **before** launching the updated app, and then **re-grant** them after the new version starts.
+
+### Homebrew
+
+```sh
+brew upgrade window-switcher
+```
+
+After upgrading, open **System Settings → Privacy & Security**, remove the app from both **Accessibility** and **Screen Recording**, then launch the app and grant the permissions again when prompted.
+
 ## Features
 
 - [x] Fuzzy-search for windows
@@ -38,3 +51,4 @@ brew install --cask sean01zhang/formulae/window-switcher
 - [ ] List windows in all spaces
 - [x] Get window previews
 - [ ] User-defined hotkey bindings
+- [x] Fuzzy-search for applications
