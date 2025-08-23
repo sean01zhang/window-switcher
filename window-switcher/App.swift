@@ -143,22 +143,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if keyCode == kVK_Tab &&
                 flags.intersection(.deviceIndependentFlagsMask) == .option {
                 let delegate = Unmanaged<AppDelegate>.fromOpaque(userInfo!).takeUnretainedValue()
-                var shouldHandle = false
-                DispatchQueue.main.sync {
-                    if !delegate.isHotkeyActionInProgress {
-                        delegate.isHotkeyActionInProgress = true
-                        shouldHandle = true
+                let toggleOverlay = {
+                    guard !delegate.isHotkeyActionInProgress else { return }
+                    delegate.isHotkeyActionInProgress = true
+                    if delegate.isOverlayVisible {
+                        delegate.hideWindowSwitcher()
+                    } else {
+                        delegate.showWindowSwitcher()
                     }
+                    delegate.isHotkeyActionInProgress = false
                 }
-                if shouldHandle {
-                    DispatchQueue.main.async {
-                        if delegate.isOverlayVisible {
-                            delegate.hideWindowSwitcher()
-                        } else {
-                            delegate.showWindowSwitcher()
-                        }
-                        delegate.isHotkeyActionInProgress = false
-                    }
+                if Thread.isMainThread {
+                    toggleOverlay()
+                } else {
+                    DispatchQueue.main.sync(execute: toggleOverlay)
                 }
                 return nil
             }
