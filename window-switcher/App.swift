@@ -23,6 +23,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var runLoopSource: CFRunLoopSource?
     private var statusBarItem: NSStatusItem?
     var mainWindow: NSWindow?
+    private var isHotkeyActionInProgress = false
+    private var isOverlayVisible = false
 
     private func ensureAccessibilityPermission() {
         if !AccessibilityPermissions.ensurePrompt() {
@@ -67,14 +69,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func showWindowSwitcher() {
+        guard !isOverlayVisible else { return }
         self.mainWindow?.styleMask.update(with: .titled)
         self.mainWindow?.makeKeyAndOrderFront(nil)
         self.mainWindow?.styleMask.remove(.titled)
         self.activateApp()
+        isOverlayVisible = true
+    }
+
+    private func hideWindowSwitcher() {
+        guard isOverlayVisible else { return }
+        NSApp.hide(nil)
+        isOverlayVisible = false
     }
 
     @objc func activateOverlay(_ sender: NSStatusBarButton) {
-        showWindowSwitcher()
+        if isOverlayVisible {
+            hideWindowSwitcher()
+        } else {
+            showWindowSwitcher()
+        }
     }
     
     @objc func refreshWindowsClicked(_ sender: NSStatusBarButton) {
@@ -99,10 +113,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.center()
             self.mainWindow = window
         }
-        
+
         NSApp.setActivationPolicy(.accessory)
         registerHotKey()
         setupStatusBar()
+        NotificationCenter.default.addObserver(forName: NSApplication.didHideNotification,
+                                               object: nil,
+                                               queue: .main) { [weak self] _ in
+            self?.isOverlayVisible = false
+        }
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
@@ -124,10 +143,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if keyCode == kVK_Tab &&
                 flags.intersection(.deviceIndependentFlagsMask) == .option {
                 let delegate = Unmanaged<AppDelegate>.fromOpaque(userInfo!).takeUnretainedValue()
-                if delegate.mainWindow?.isKeyWindow == true {
-                    NSApp.hide(nil)
-                } else {
-                    delegate.showWindowSwitcher()
+                var shouldHandle = false
+                DispatchQueue.main.sync {
+                    if !delegate.isHotkeyActionInProgress {
+                        delegate.isHotkeyActionInProgress = true
+                        shouldHandle = true
+                    }
+                }
+                if shouldHandle {
+                    DispatchQueue.main.async {
+                        if delegate.isOverlayVisible {
+                            delegate.hideWindowSwitcher()
+                        } else {
+                            delegate.showWindowSwitcher()
+                        }
+                        delegate.isHotkeyActionInProgress = false
+                    }
                 }
                 return nil
             }
