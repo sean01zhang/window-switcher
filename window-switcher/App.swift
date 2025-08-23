@@ -23,6 +23,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var runLoopSource: CFRunLoopSource?
     private var statusBarItem: NSStatusItem?
     var mainWindow: NSWindow?
+    private var isHotkeyActionInProgress = false
 
     private func ensureAccessibilityPermission() {
         if !AccessibilityPermissions.ensurePrompt() {
@@ -67,14 +68,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func showWindowSwitcher() {
+        guard mainWindow?.isKeyWindow != true else { return }
         self.mainWindow?.styleMask.update(with: .titled)
         self.mainWindow?.makeKeyAndOrderFront(nil)
         self.mainWindow?.styleMask.remove(.titled)
         self.activateApp()
     }
 
+    private func hideWindowSwitcher() {
+        guard !NSApp.isHidden else { return }
+        NSApp.hide(nil)
+    }
+
     @objc func activateOverlay(_ sender: NSStatusBarButton) {
-        showWindowSwitcher()
+        if mainWindow?.isKeyWindow == true {
+            hideWindowSwitcher()
+        } else {
+            showWindowSwitcher()
+        }
     }
     
     @objc func refreshWindowsClicked(_ sender: NSStatusBarButton) {
@@ -99,7 +110,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.center()
             self.mainWindow = window
         }
-        
+
         NSApp.setActivationPolicy(.accessory)
         registerHotKey()
         setupStatusBar()
@@ -124,10 +135,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if keyCode == kVK_Tab &&
                 flags.intersection(.deviceIndependentFlagsMask) == .option {
                 let delegate = Unmanaged<AppDelegate>.fromOpaque(userInfo!).takeUnretainedValue()
-                if delegate.mainWindow?.isKeyWindow == true {
-                    NSApp.hide(nil)
-                } else {
-                    delegate.showWindowSwitcher()
+                var shouldHandle = false
+                DispatchQueue.main.sync {
+                    if !delegate.isHotkeyActionInProgress {
+                        delegate.isHotkeyActionInProgress = true
+                        shouldHandle = true
+                    }
+                }
+                if shouldHandle {
+                    DispatchQueue.main.async {
+                        if delegate.mainWindow?.isKeyWindow == true {
+                            delegate.hideWindowSwitcher()
+                        } else {
+                            delegate.showWindowSwitcher()
+                        }
+                        delegate.isHotkeyActionInProgress = false
+                    }
                 }
                 return nil
             }
