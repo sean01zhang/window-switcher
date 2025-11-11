@@ -5,3 +5,6 @@
 # Xcode files
 *.pbxuser
 xcuserdata/
+
+# Other editor files
+.vscode
