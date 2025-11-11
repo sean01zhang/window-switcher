@@ -11,7 +11,7 @@ struct SearchBarView: View {
     @Binding var searchText: String
     @FocusState private var isFocused: Bool
     let searchPrompt: String
-    let height: CGFloat = 25
+    let height: CGFloat = 18
     
     var body: some View {
         HStack {

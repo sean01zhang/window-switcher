@@ -12,7 +12,7 @@ func SCWindowKey(window: SCWindow) -> String {
 }
 
 // WindowStreams will hold a buffer of WindowStreams
-class WindowStreams {
+class WindowStreamClient {
     private var windowMap: [Window: SCWindow] = [:]
     
     init(_ windows: [Window]) {
@@ -51,7 +51,7 @@ class WindowStreams {
     
     public func getWindowPreview(for window: Window) async throws -> CGImage? {
         if let w = windowMap[window] {
-            return try await WindowStreams.getImage(for: w)
+            return try await WindowStreamClient.getImage(for: w)
         } else {
             return nil
         }
