@@ -1,10 +1,3 @@
-//
-//  FuzzySearch.swift
-//  window-switcher
-//
-//  Created by Sean Zhang on 2025-01-11.
-//
-
 // FuzzyCompare takes two strings and computes a similarity score between the two.
 func FuzzyCompare(_ string1: String, _ string2: String) -> Int16 {
     let m = string1.lengthOfBytes(using: .utf8)
@@ -37,11 +30,6 @@ func FuzzyCompare(_ string1: String, _ string2: String) -> Int16 {
 }
 
 let gapPenaltyMultiplier = Int16(6)
-
-// gapPenalty determines the penalty of having a gap in the string match in the smith-waterman algorithm.
-func gapPenalty(_ distance: Int) -> Int {
-    return distance
-}
 
 func score(_ c1: Character, _ c2: Character) -> Int16 {
     if c1 == c2 {

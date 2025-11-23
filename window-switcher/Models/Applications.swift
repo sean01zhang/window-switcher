@@ -24,4 +24,3 @@ func getInstalledApplications() -> [Application] {
     }
     return apps
 }
-

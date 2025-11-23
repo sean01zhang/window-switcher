@@ -1,10 +1,3 @@
-//
-//  ContentViewModel.swift
-//  window-switcher
-//
-//  Created by Sean Zhang on 2024-12-27.
-//
-
 import SwiftUI
 import AppKit
 import Observation
@@ -42,7 +35,7 @@ extension SwitcherView {
         }
         var selectedItemPreview: CGImage?
         
-        // Utilities (injected)
+        // Utilities
         let windowClient: WindowClient
         let streamClient: WindowStreamClient
 
