@@ -32,16 +32,11 @@ brew install --cask sean01zhang/formulae/window-switcher
 
 ## Upgrading
 
-> [!Warning]
-> Due to packaging limitations, you must **remove** any previously granted Accessibility and Screen Recording permissions **before** launching the updated app, and then **re-grant** them after the new version starts.
-
 ### Homebrew
 
 ```sh
 brew upgrade window-switcher
 ```
-
-After upgrading, open **System Settings → Privacy & Security**, remove the app from both **Accessibility** and **Screen Recording**, then launch the app and grant the permissions again when prompted.
 
 ## Features
 
