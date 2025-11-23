@@ -63,8 +63,9 @@ struct SwitcherView: View {
             }
         )
         .clipShape(RoundedRectangle(cornerRadius: 32))
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-            viewModel.searchText = ""
+        // Close window when switcher view loses focus.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            closeWindow()
         }
         // Floating, shorter, fully-rounded search bar with shadow at bottom
         .overlay(alignment: .bottom) {

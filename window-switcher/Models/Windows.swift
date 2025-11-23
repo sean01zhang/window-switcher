@@ -1,10 +1,3 @@
-//
-//  Windows.swift
-//  window-switcher
-//
-//  Created by Sean Zhang on 2024-12-27.
-//
-
 import AppKit
 
 struct Window: Hashable {
