@@ -28,7 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		14D9F88C2D1F48110090AB9F /* window-switcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "window-switcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		14D9F88C2D1F48110090AB9F /* window-switcher-dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "window-switcher-dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		14D9F89D2D1F48130090AB9F /* window-switcherTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "window-switcherTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		14D9F8A72D1F48130090AB9F /* window-switcherUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "window-switcherUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -90,7 +90,7 @@
 		14D9F88D2D1F48110090AB9F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				14D9F88C2D1F48110090AB9F /* window-switcher.app */,
+				14D9F88C2D1F48110090AB9F /* window-switcher-dev.app */,
 				14D9F89D2D1F48130090AB9F /* window-switcherTests.xctest */,
 				14D9F8A72D1F48130090AB9F /* window-switcherUITests.xctest */,
 			);
@@ -120,7 +120,7 @@
 				144F04F22EB8114300AB4EAE /* HotKey */,
 			);
 			productName = "window-switcher";
-			productReference = 14D9F88C2D1F48110090AB9F /* window-switcher.app */;
+			productReference = 14D9F88C2D1F48110090AB9F /* window-switcher-dev.app */;
 			productType = "com.apple.product-type.application";
 		};
 		14D9F89C2D1F48130090AB9F /* window-switcherTests */ = {
@@ -418,7 +418,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Window Switcher";
+				INFOPLIST_KEY_CFBundleDisplayName = "Window Switcher Development";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -428,8 +428,8 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 0.4.1;
-				PRODUCT_BUNDLE_IDENTIFIER = "src.naesna.window-switcher";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "src.naesna.window-switcher-dev";
+				PRODUCT_NAME = "$(TARGET_NAME)-dev";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
