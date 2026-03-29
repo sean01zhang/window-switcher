@@ -8,6 +8,7 @@ extension SwitcherView {
     class ViewModel {
         // State
         var searchItems: [SearchItem] = []
+        private var previewTask: Task<Void, Never>?
         var searchText: String = "" {
             // Hook to call search function when searchText is updated.
             didSet {
@@ -16,20 +17,36 @@ extension SwitcherView {
         }
         var selectedItem: SearchItem? = nil {
             didSet {
-                guard selectedItem != nil else {
+                previewTask?.cancel()
+
+                guard let selectedItem else {
+                    selectedItemPreview = nil
                     return
                 }
-                switch selectedItem! {
+
+                switch selectedItem {
                 case .window(let w):
-                    Task {
+                    selectedItemPreview = nil
+                    previewTask = Task { [weak self] in
+                        guard let self else {
+                            return
+                        }
+
                         do {
-                            self.selectedItemPreview = try await self.streamClient.getWindowPreview(for: w)
-                        } catch let err {
-                            print("error: get window preview: \(err)")
+                            let preview = try await self.streamClient.getWindowPreview(for: w)
+                            guard !Task.isCancelled, self.selectedItem == .window(w) else {
+                                return
+                            }
+                            self.selectedItemPreview = preview
+                        } catch is CancellationError {
+                            return
+                        } catch {
+                            print("error: get window preview: \(error)")
                         }
                     }
                 case .application:
                     selectedItemPreview = nil
+                    previewTask = nil
                 }
             }
         }
