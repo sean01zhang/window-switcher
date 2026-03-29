@@ -21,6 +21,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         
         ensureAccessibilityPermission()
+        Task {
+            await ApplicationIndex.shared.preload()
+        }
         setupHotKey()
     }
     

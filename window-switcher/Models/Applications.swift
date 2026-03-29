@@ -5,7 +5,50 @@ struct Application: Hashable {
     let url: URL
 }
 
-func getInstalledApplications() -> [Application] {
+actor ApplicationIndex {
+    static let shared = ApplicationIndex()
+
+    private var cachedApplications: [Application]?
+    private var loadTask: Task<[Application], Never>?
+
+    func preload() async {
+        _ = await applications()
+    }
+
+    func applications() async -> [Application] {
+        if let cachedApplications {
+            return cachedApplications
+        }
+
+        if loadTask == nil {
+            loadTask = Task.detached(priority: .utility) {
+                loadInstalledApplications()
+            }
+        }
+
+        let applications = await loadTask?.value ?? []
+        cachedApplications = applications
+        loadTask = nil
+        return applications
+    }
+
+    func search(_ query: String) async -> [(Int16, Application)] {
+        guard !query.isEmpty else {
+            return []
+        }
+
+        return await applications().compactMap { app in
+            let score = FuzzyCompare(query.lowercased(), app.name.lowercased())
+            guard score > 3 else {
+                return nil
+            }
+
+            return (score, app)
+        }
+    }
+}
+
+private func loadInstalledApplications() -> [Application] {
     let fileManager = FileManager.default
     var apps: [Application] = []
     let searchPaths = ["/Applications", "/System/Applications", "\(NSHomeDirectory())/Applications"]
