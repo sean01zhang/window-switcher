@@ -28,6 +28,10 @@ class WindowStreamClient {
     }
 
     private func loadInitialMap(for windows: [Window]) async {
+        defer {
+            initialLoadTask = nil
+        }
+
         do {
             windowMap = try await getInitialMap(for: windows)
         } catch is CancellationError {
@@ -57,10 +61,15 @@ class WindowStreamClient {
     }
 
     public func refresh(_ windows: [Window]) async throws {
+        initialLoadTask = nil
         windowMap = try await getInitialMap(for: windows)
     }
     
     public func getWindowPreview(for window: Window) async throws -> CGImage? {
+        if let initialLoadTask {
+            await initialLoadTask.value
+        }
+
         if let w = windowMap[window] {
             return try await WindowStreamClient.getImage(for: w)
         } else {
