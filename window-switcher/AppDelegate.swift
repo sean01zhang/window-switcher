@@ -8,6 +8,7 @@
 import AppKit
 import HotKey
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window : NSWindow?
     var hotKey : HotKey?

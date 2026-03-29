@@ -12,17 +12,28 @@ func SCWindowKey(window: SCWindow) -> String {
 }
 
 // WindowStreams will hold a buffer of WindowStreams
+@MainActor
 class WindowStreamClient {
     private var windowMap: [Window: SCWindow] = [:]
+    private var initialLoadTask: Task<Void, Never>?
     
     init(_ windows: [Window]) {
-        Task {
-            do {
-                windowMap = try await getInitialMap(for: windows)
-            } catch let err {
-                print("error: get initial map: \(err)")
-                exit(1)
-            }
+        initialLoadTask = Task { [weak self] in
+            await self?.loadInitialMap(for: windows)
+        }
+    }
+
+    deinit {
+        initialLoadTask?.cancel()
+    }
+
+    private func loadInitialMap(for windows: [Window]) async {
+        do {
+            windowMap = try await getInitialMap(for: windows)
+        } catch is CancellationError {
+            return
+        } catch {
+            print("error: get initial map: \(error)")
         }
     }
     
