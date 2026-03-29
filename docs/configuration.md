@@ -1,8 +1,9 @@
 # Window Switcher Configuration
 
-Window Switcher reads optional configuration from `~/.config/window-switcher/config.toml`.
+Window Switcher reads configuration from `~/.config/window-switcher/config.toml`. If the file is missing, it falls
+back to the default config.
 
-If the file does not exist, Window Switcher uses built-in defaults. The menu bar's `Open Config...` action creates the file with the default contents before opening it.
+To see changes after making changes to the config, go to the menubar widget and click "Open Switcher".
 
 ## Default Config
 
@@ -25,10 +26,3 @@ modifiers = ["option"]
 - `option`
 - `control`
 - `shift`
-
-## Behavior
-
-- If the config file is missing, Window Switcher falls back to `Option+Tab`.
-- If the config file is invalid, Window Switcher falls back to `Option+Tab` and logs a warning.
-- Configuration is loaded on app launch and reloaded the next time the switcher is opened.
-- Window Switcher does not watch the config file for live updates while the switcher is already open.
