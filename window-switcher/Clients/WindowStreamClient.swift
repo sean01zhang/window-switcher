@@ -7,11 +7,6 @@
 
 import ScreenCaptureKit
 
-private struct WindowTitleKey: Hashable {
-    let appPID: Int32
-    let title: String
-}
-
 private struct WindowFrameKey: Hashable {
     let x: Int
     let y: Int
