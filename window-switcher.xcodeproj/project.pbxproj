@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		144F04F32EB8114300AB4EAE /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = 144F04F22EB8114300AB4EAE /* HotKey */; };
+		14A1D0012F00000100A1B2C3 /* TOMLDecoder in Frameworks */ = {isa = PBXBuildFile; productRef = 14A1D0032F00000100A1B2C3 /* TOMLDecoder */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				144F04F32EB8114300AB4EAE /* HotKey in Frameworks */,
+				14A1D0012F00000100A1B2C3 /* TOMLDecoder in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			name = "window-switcher";
 			packageProductDependencies = (
 				144F04F22EB8114300AB4EAE /* HotKey */,
+				14A1D0032F00000100A1B2C3 /* TOMLDecoder */,
 			);
 			productName = "window-switcher";
 			productReference = 14D9F88C2D1F48110090AB9F /* window-switcher-dev.app */;
@@ -203,6 +206,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				144F04F12EB810D000AB4EAE /* XCRemoteSwiftPackageReference "HotKey" */,
+				14A1D0022F00000100A1B2C3 /* XCRemoteSwiftPackageReference "TOMLDecoder" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 14D9F88D2D1F48110090AB9F /* Products */;
@@ -474,9 +478,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 43QM329935;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
@@ -484,7 +491,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/window-switcher.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/window-switcher";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/window-switcher-dev.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/window-switcher-dev";
 			};
 			name = Debug;
 		};
@@ -492,9 +499,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 43QM329935;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
@@ -588,6 +598,14 @@
 				kind = branch;
 			};
 		};
+		14A1D0022F00000100A1B2C3 /* XCRemoteSwiftPackageReference "TOMLDecoder" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dduan/TOMLDecoder";
+			requirement = {
+				kind = exactVersion;
+				version = 0.4.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -595,6 +613,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 144F04F12EB810D000AB4EAE /* XCRemoteSwiftPackageReference "HotKey" */;
 			productName = HotKey;
+		};
+		14A1D0032F00000100A1B2C3 /* TOMLDecoder */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 14A1D0022F00000100A1B2C3 /* XCRemoteSwiftPackageReference "TOMLDecoder" */;
+			productName = TOMLDecoder;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

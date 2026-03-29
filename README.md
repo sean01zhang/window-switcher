@@ -10,9 +10,25 @@ Window Switcher is a simple searchable window switcher for macOS.
 > The app needs accessibility to get all windows and focus windows in the active space, and
 > needs screen recording to get the window previews.
 
-1. Use hotkey (option + tab) to open the window switcher.
+1. Use the configured hotkey to open the window switcher. The default is `Option+Tab`.
 2. Type to search for a window, or use arrow keys to move your selection.
 3. Press `enter` to switch to the selected window.
+
+## Configuration
+
+Window Switcher reads optional configuration from `~/.config/window-switcher/config.toml`.
+
+Full configuration docs live in [docs/configuration.md](docs/configuration.md).
+
+```toml
+[trigger]
+key = "tab"
+modifiers = ["option"]
+```
+
+Supported trigger modifiers are `command`, `option`, `control`, and `shift`. If the file is missing or invalid, Window Switcher falls back to the default `Option+Tab` trigger.
+
+Configuration is loaded on app launch and reloaded the next time the switcher is opened. The app does not watch the file for live updates.
 
 ## Installation
 
@@ -45,5 +61,5 @@ brew upgrade window-switcher
 - [x] List windows in current space
 - [ ] List windows in all spaces
 - [x] Get window previews
-- [ ] User-defined hotkey bindings
+- [x] User-defined hotkey bindings
 - [x] Fuzzy-search for applications
