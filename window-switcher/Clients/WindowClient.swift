@@ -22,6 +22,17 @@ private func getWindowName(element: AXUIElement) -> String? {
     return trimmedTitle.isEmpty ? nil : trimmedTitle
 }
 
+private func getWindowAttribute(
+    _ attribute: CFString,
+    from element: AXUIElement
+) -> AXUIElement? {
+    guard let valueRef = getAttributeValue(attribute, from: element) else {
+        return nil
+    }
+
+    return valueRef as! AXUIElement
+}
+
 private func getRole(element: AXUIElement) -> String? {
     guard let roleRef = getAttributeValue(kAXRoleAttribute as CFString, from: element),
           let role = roleRef as? String else {
@@ -104,6 +115,7 @@ private func handleObserverEvent(
 
 final class WindowClient {
     private var windows: [Window]
+    private var recentWindowKeys: [WindowRecentUseKey]
     private var applicationObservers: [Int32: AXObserver] = [:]
     private let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
     private var workspaceObservers: [NSObjectProtocol] = []
@@ -111,6 +123,7 @@ final class WindowClient {
     init() {
         let apps = Self.getApps()
         windows = Self.getInitialWindows(apps)
+        recentWindowKeys = Self.seedRecentWindowKeys(for: windows)
         startObserving(apps: apps)
         startObservingWorkspace()
     }
@@ -124,7 +137,13 @@ final class WindowClient {
         windows
     }
 
+    func getWindowsByRecentUse() -> [Window] {
+        WindowRecentUse.orderedWindows(windows, recentKeys: recentWindowKeys)
+    }
+
     func focusWindow(_ window: Window) {
+        moveWindowToFront(window)
+
         let err = AXUIElementPerformAction(window.element, kAXRaiseAction as CFString)
         if err != .success {
             print("[\(window.appName)] Error raising window \(err)")
@@ -144,6 +163,7 @@ final class WindowClient {
     func refresh() {
         let apps = Self.getApps()
         windows = Self.getInitialWindows(apps)
+        recentWindowKeys = Self.seedRecentWindowKeys(for: windows)
         resetObservers()
         startObserving(apps: apps)
     }
@@ -217,8 +237,11 @@ final class WindowClient {
                 kAXWindowResizedNotification as CFString,
                 kAXWindowMiniaturizedNotification as CFString,
                 kAXWindowDeminiaturizedNotification as CFString,
+                kAXApplicationActivatedNotification as CFString,
                 kAXApplicationHiddenNotification as CFString,
                 kAXApplicationShownNotification as CFString,
+                kAXFocusedWindowChangedNotification as CFString,
+                kAXMainWindowChangedNotification as CFString,
                 kAXUIElementDestroyedNotification as CFString
             ]
 
@@ -257,10 +280,12 @@ final class WindowClient {
         let insertIndex = windows.firstIndex(where: { $0.appPID == appPID }) ?? windows.count
         windows.removeAll(where: { $0.appPID == appPID })
         windows.insert(contentsOf: updatedWindows, at: min(insertIndex, windows.count))
+        reconcileRecentWindowKeys()
     }
 
     private func removeWindows(for appPID: Int32) {
         windows.removeAll(where: { $0.appPID == appPID })
+        reconcileRecentWindowKeys()
     }
 
     private func syncWindows(for appPID: Int32) {
@@ -282,6 +307,36 @@ final class WindowClient {
         syncWindows(for: appPID)
     }
 
+    private func reconcileRecentWindowKeys() {
+        recentWindowKeys = WindowRecentUse.reconcile(recentWindowKeys, with: windows.map(\.recentUseKey))
+    }
+
+    private func moveWindowToFront(_ window: Window) {
+        recentWindowKeys = WindowRecentUse.movingToFront(window.recentUseKey, in: recentWindowKeys)
+    }
+
+    private func moveTrackedWindowToFront(element: AXUIElement) -> Bool {
+        guard let window = windows.first(where: { $0.element == element }) else {
+            return false
+        }
+
+        moveWindowToFront(window)
+        return true
+    }
+
+    private func moveFocusedWindowToFront(for appPID: Int32) {
+        let appElement = AXUIElementCreateApplication(appPID)
+
+        if let focusedWindow = getWindowAttribute(kAXFocusedWindowAttribute as CFString, from: appElement),
+           moveTrackedWindowToFront(element: focusedWindow) {
+            return
+        }
+
+        if let mainWindow = getWindowAttribute(kAXMainWindowAttribute as CFString, from: appElement) {
+            _ = moveTrackedWindowToFront(element: mainWindow)
+        }
+    }
+
     fileprivate func processNotification(observer: AXObserver, element: AXUIElement, notification: CFString) {
         switch String(notification) {
         case kAXTitleChangedNotification:
@@ -293,10 +348,12 @@ final class WindowClient {
                 guard let app = NSRunningApplication(processIdentifier: appPID),
                       let updatedWindow = makeWindow(element: element, app: app) else {
                     windows.remove(at: windowIdx)
+                    reconcileRecentWindowKeys()
                     return
                 }
 
                 windows[windowIdx] = updatedWindow
+                reconcileRecentWindowKeys()
             } else {
                 syncWindowIfNeeded(observer: observer, element: element)
             }
@@ -304,6 +361,7 @@ final class WindowClient {
         case kAXWindowMovedNotification, kAXWindowResizedNotification:
             if let windowIdx = windows.firstIndex(where: { $0.element == element }) {
                 windows[windowIdx].frame = getWindowFrame(element: element)
+                reconcileRecentWindowKeys()
             } else {
                 syncWindowIfNeeded(observer: observer, element: element)
             }
@@ -312,6 +370,27 @@ final class WindowClient {
              kAXWindowMiniaturizedNotification,
              kAXWindowDeminiaturizedNotification:
             syncWindowIfNeeded(observer: observer, element: element)
+
+        case kAXApplicationActivatedNotification:
+            guard let appPID = appPID(for: observer) else {
+                return
+            }
+
+            syncWindows(for: appPID)
+            moveFocusedWindowToFront(for: appPID)
+
+        case kAXFocusedWindowChangedNotification,
+             kAXMainWindowChangedNotification:
+            guard let appPID = appPID(for: observer) else {
+                return
+            }
+
+            if moveTrackedWindowToFront(element: element) {
+                return
+            }
+
+            syncWindows(for: appPID)
+            moveFocusedWindowToFront(for: appPID)
 
         case kAXApplicationHiddenNotification:
             guard let appPID = appPID(for: observer) else {
@@ -369,5 +448,57 @@ final class WindowClient {
 
     private static func getInitialWindows(_ apps: [NSRunningApplication]) -> [Window] {
         apps.flatMap(getWindows(for:))
+    }
+
+    private static func seedRecentWindowKeys(for windows: [Window]) -> [WindowRecentUseKey] {
+        let snapshot = windows.map(\.recentUseSnapshotEntry)
+        let candidates = getOnScreenWindowCandidates(for: windows)
+        return WindowRecentUse.seededKeys(snapshot: snapshot, from: candidates)
+    }
+
+    private static func getOnScreenWindowCandidates(for windows: [Window]) -> [WindowRecentUseSeedCandidate] {
+        let trackedPIDs = Set(windows.map(\.appPID))
+        guard !trackedPIDs.isEmpty,
+              let cgWindowInfo = CGWindowListCopyWindowInfo(
+                [.optionOnScreenOnly, .excludeDesktopElements],
+                kCGNullWindowID
+              ) as? [[String: Any]] else {
+            return []
+        }
+
+        return cgWindowInfo.compactMap { info in
+            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber,
+                  trackedPIDs.contains(ownerPIDValue.int32Value),
+                  let layerValue = info[kCGWindowLayer as String] as? NSNumber,
+                  layerValue.intValue == 0 else {
+                return nil
+            }
+
+            let appPID = ownerPIDValue.int32Value
+            let title = info[kCGWindowName as String] as? String
+            let titleKey = title.map { WindowTitleKey(appPID: appPID, title: $0) }
+            let recentUseKey = title.flatMap { title -> WindowRecentUseKey? in
+                guard let bounds = getBounds(from: info) else {
+                    return nil
+                }
+
+                return WindowRecentUseKey(appPID: appPID, title: title, size: bounds.size)
+            }
+
+            return WindowRecentUseSeedCandidate(titleKey: titleKey, recentUseKey: recentUseKey)
+        }
+    }
+
+    private static func getBounds(from info: [String: Any]) -> CGRect? {
+        guard let boundsDictionary = info[kCGWindowBounds as String] as? NSDictionary else {
+            return nil
+        }
+
+        var bounds = CGRect.zero
+        guard CGRectMakeWithDictionaryRepresentation(boundsDictionary, &bounds) else {
+            return nil
+        }
+
+        return bounds
     }
 }

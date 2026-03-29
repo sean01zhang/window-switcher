@@ -2,6 +2,61 @@ import SwiftUI
 import AppKit
 import Observation
 
+enum SwitcherSearchMode {
+    case blankQuery
+    case searchQuery
+}
+
+enum SwitcherSearchResults {
+    static func orderedItems(
+        from resultScores: [(Int16, SearchItem)],
+        mode: SwitcherSearchMode
+    ) -> [SearchItem] {
+        switch mode {
+        case .blankQuery:
+            return resultScores.map(\.1)
+        case .searchQuery:
+            return resultScores
+                .sorted(by: compareSearchResults)
+                .map(\.1)
+        }
+    }
+
+    static func initialSelectionIndex(
+        resultCount: Int,
+        mode: SwitcherSearchMode
+    ) -> Int? {
+        guard resultCount > 0 else {
+            return nil
+        }
+
+        switch mode {
+        case .blankQuery:
+            return resultCount > 1 ? 1 : 0
+        case .searchQuery:
+            return 0
+        }
+    }
+
+    static func compareSearchResults(
+        lhs: (Int16, SearchItem),
+        rhs: (Int16, SearchItem)
+    ) -> Bool {
+        if lhs.0 != rhs.0 {
+            return lhs.0 > rhs.0
+        }
+
+        switch (lhs.1, rhs.1) {
+        case (.window, .application):
+            return true
+        case (.application, .window):
+            return false
+        default:
+            return false
+        }
+    }
+}
+
 extension SwitcherView {
     @MainActor
     @Observable
@@ -55,7 +110,7 @@ extension SwitcherView {
             }
         }
         var selectedItemPreview: CGImage?
-        
+
         // Utilities
         let windowClient: WindowClient
         let streamClient: WindowStreamClient
@@ -66,7 +121,7 @@ extension SwitcherView {
             // Seed initial results
             search()
         }
-        
+
         // Handlers
         /// Callback for when an a search item is switched to.
         func enterItem(_ item: SearchItem) {
@@ -81,52 +136,55 @@ extension SwitcherView {
             // Perform some cleanup.
             searchText = ""
         }
-        
+
         private func curSelectedItemIndex() -> Int? {
             guard let selectedItem, let index = searchItems.firstIndex(of: selectedItem) else {
                 return nil
             }
             return index
         }
-            
+
         /// Handler when the user wants to select the previous item in the list.
         func selectPrev() {
             // Get index of current selected item. If it doesn't exist, this function no-ops.
             guard let currentIndex = curSelectedItemIndex(), !searchItems.isEmpty else {
                 return
             }
-            
+
             // Set selected item to previous, with circular wraparound (if it's the 0th item)
             let newIndex = (currentIndex - 1 + searchItems.count) % searchItems.count
             selectedItem = searchItems[newIndex]
         }
-        
+
         /// Handler when the user wants to select the next item in the list.
         func selectNext() {
             // Get index of current selected item. If it doesn't exist, no-op.
             guard let currentIndex = curSelectedItemIndex(), !searchItems.isEmpty else {
                 return
             }
-            
+
             let newIndex = (currentIndex + 1) % searchItems.count
             selectedItem = searchItems[newIndex]
         }
-        
+
         /// Gets the most relevant results based on the search text.
         private func search() {
             applicationSearchTask?.cancel()
 
             let query = searchText
+            if query.isEmpty {
+                let windowResults = windowClient.getWindowsByRecentUse()
+                    .map { (Int16(0), SearchItem.window($0)) }
+                applySearchResults(windowResults, mode: .blankQuery)
+                return
+            }
+
             let windowResults = Windows.search(
                 query,
                 windowClient.getWindows()
             ).map { ( $0.0, SearchItem.window($0.1) ) }
 
-            applySearchResults(windowResults)
-
-            guard !query.isEmpty else {
-                return
-            }
+            applySearchResults(windowResults, mode: .searchQuery)
 
             applicationSearchTask = Task { [weak self] in
                 guard let self else {
@@ -139,35 +197,26 @@ extension SwitcherView {
                 }
 
                 self.applySearchResults(
-                    windowResults + appResults.map { ( $0.0, SearchItem.application($0.1) ) }
+                    windowResults + appResults.map { ( $0.0, SearchItem.application($0.1) ) },
+                    mode: .searchQuery
                 )
             }
         }
 
-        private func applySearchResults(_ resultScores: [(Int16, SearchItem)]) {
-            let results = resultScores
-                .sorted(by: Self.compareSearchResults)
-                .map(\.1)
-
+        private func applySearchResults(
+            _ resultScores: [(Int16, SearchItem)],
+            mode: SwitcherSearchMode
+        ) {
+            let results = SwitcherSearchResults.orderedItems(from: resultScores, mode: mode)
             searchItems = results
-            selectedItem = results.first
-        }
 
-        private static func compareSearchResults(
-            lhs: (Int16, SearchItem),
-            rhs: (Int16, SearchItem)
-        ) -> Bool {
-            if lhs.0 != rhs.0 {
-                return lhs.0 > rhs.0
-            }
-
-            switch (lhs.1, rhs.1) {
-            case (.window, .application):
-                return true
-            case (.application, .window):
-                return false
-            default:
-                return false
+            if let selectedIndex = SwitcherSearchResults.initialSelectionIndex(
+                resultCount: results.count,
+                mode: mode
+            ) {
+                selectedItem = results[selectedIndex]
+            } else {
+                selectedItem = nil
             }
         }
     }
