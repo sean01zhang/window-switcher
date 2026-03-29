@@ -5,6 +5,7 @@ struct Window: Hashable {
     var appName: String
     var appPID: Int32
     var name: String
+    var frame: CGRect?
     var element: AXUIElement
 
     func hash(into hasher: inout Hasher) {

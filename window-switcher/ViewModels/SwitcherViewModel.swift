@@ -8,6 +8,8 @@ extension SwitcherView {
     class ViewModel {
         // State
         var searchItems: [SearchItem] = []
+        private var applicationSearchTask: Task<Void, Never>?
+        private var previewTask: Task<Void, Never>?
         var searchText: String = "" {
             // Hook to call search function when searchText is updated.
             didSet {
@@ -16,20 +18,39 @@ extension SwitcherView {
         }
         var selectedItem: SearchItem? = nil {
             didSet {
-                guard selectedItem != nil else {
+                previewTask?.cancel()
+
+                guard let selectedItem else {
+                    selectedItemPreview = nil
                     return
                 }
-                switch selectedItem! {
+
+                switch selectedItem {
                 case .window(let w):
-                    Task {
+                    selectedItemPreview = nil
+                    previewTask = Task { [weak self] in
+                        guard let self else {
+                            return
+                        }
+
                         do {
-                            self.selectedItemPreview = try await self.streamClient.getWindowPreview(for: w)
-                        } catch let err {
-                            print("error: get window preview: \(err)")
+                            let preview = try await self.streamClient.getWindowPreview(
+                                for: w,
+                                among: self.windowClient.getWindows()
+                            )
+                            guard !Task.isCancelled, self.selectedItem == .window(w) else {
+                                return
+                            }
+                            self.selectedItemPreview = preview
+                        } catch is CancellationError {
+                            return
+                        } catch {
+                            print("error: get window preview: \(error)")
                         }
                     }
                 case .application:
                     selectedItemPreview = nil
+                    previewTask = nil
                 }
             }
         }
@@ -93,32 +114,61 @@ extension SwitcherView {
         
         /// Gets the most relevant results based on the search text.
         private func search() {
-            // Perform a search on relevant windows first.
-            var resultScores: [(Int16, SearchItem)] = Windows.search(
-                self.searchText,
-                self.windowClient.getWindows()
+            applicationSearchTask?.cancel()
+
+            let query = searchText
+            let windowResults = Windows.search(
+                query,
+                windowClient.getWindows()
             ).map { ( $0.0, SearchItem.window($0.1) ) }
-                
-            // Search for relevant applications next, and append to scores.
-            // This is appended because open windows should take precedence over
-            // applications.
-            if !self.searchText.isEmpty {
-                var appResults: [(Int16, Application)] = []
-                for app in getInstalledApplications() {
-                    let score = FuzzyCompare(self.searchText.lowercased(), app.name.lowercased())
-                    if score > 3 {
-                        appResults.append((score, app))
-                    }
-                }
-                resultScores.append(contentsOf: appResults.map { ( $0.0, SearchItem.application($0.1))})
+
+            applySearchResults(windowResults)
+
+            guard !query.isEmpty else {
+                return
             }
-            
-            // Sort by scores (first item in tuple), then get ordered searchitems.
-            resultScores.sort(by: { $0.0 > $1.0 })
-            let results = resultScores.map(\.1)
-            
+
+            applicationSearchTask = Task { [weak self] in
+                guard let self else {
+                    return
+                }
+
+                let appResults = await ApplicationIndex.shared.search(query)
+                guard !Task.isCancelled, self.searchText == query else {
+                    return
+                }
+
+                self.applySearchResults(
+                    windowResults + appResults.map { ( $0.0, SearchItem.application($0.1) ) }
+                )
+            }
+        }
+
+        private func applySearchResults(_ resultScores: [(Int16, SearchItem)]) {
+            let results = resultScores
+                .sorted(by: Self.compareSearchResults)
+                .map(\.1)
+
             searchItems = results
             selectedItem = results.first
+        }
+
+        private static func compareSearchResults(
+            lhs: (Int16, SearchItem),
+            rhs: (Int16, SearchItem)
+        ) -> Bool {
+            if lhs.0 != rhs.0 {
+                return lhs.0 > rhs.0
+            }
+
+            switch (lhs.1, rhs.1) {
+            case (.window, .application):
+                return true
+            case (.application, .window):
+                return false
+            default:
+                return false
+            }
         }
     }
 }

@@ -8,6 +8,7 @@
 import AppKit
 import HotKey
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window : NSWindow?
     var hotKey : HotKey?
@@ -20,6 +21,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         
         ensureAccessibilityPermission()
+        Task {
+            await ApplicationIndex.shared.preload()
+        }
         setupHotKey()
     }
     
@@ -59,6 +63,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let w = window {
             w.close()
             window = nil
+        }
+    }
+
+    func refreshWindows() {
+        windowClient.refresh()
+
+        Task { [windowClient, streamClient] in
+            do {
+                try await streamClient.refresh(windowClient.getWindows())
+            } catch {
+                print("error: refresh window previews: \(error)")
+            }
         }
     }
 
