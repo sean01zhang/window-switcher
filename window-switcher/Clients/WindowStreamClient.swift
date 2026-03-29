@@ -7,8 +7,60 @@
 
 import ScreenCaptureKit
 
-func SCWindowKey(window: SCWindow) -> String {
-    "\(window.owningApplication?.applicationName ?? ""): \(window.title ?? "")"
+private struct WindowTitleKey: Hashable {
+    let appPID: Int32
+    let title: String
+}
+
+private struct WindowFrameKey: Hashable {
+    let x: Int
+    let y: Int
+    let width: Int
+    let height: Int
+
+    init(_ frame: CGRect) {
+        x = Int(frame.origin.x.rounded())
+        y = Int(frame.origin.y.rounded())
+        width = Int(frame.size.width.rounded())
+        height = Int(frame.size.height.rounded())
+    }
+}
+
+private struct WindowIdentityKey: Hashable {
+    let title: WindowTitleKey
+    let frame: WindowFrameKey
+}
+
+private extension Window {
+    var previewTitleKey: WindowTitleKey {
+        WindowTitleKey(appPID: appPID, title: name)
+    }
+
+    var previewIdentityKey: WindowIdentityKey? {
+        guard let frame else {
+            return nil
+        }
+
+        return WindowIdentityKey(title: previewTitleKey, frame: WindowFrameKey(frame))
+    }
+}
+
+private extension SCWindow {
+    var previewTitleKey: WindowTitleKey? {
+        guard let title, let appPID = owningApplication?.processID else {
+            return nil
+        }
+
+        return WindowTitleKey(appPID: appPID, title: title)
+    }
+
+    var previewIdentityKey: WindowIdentityKey? {
+        guard let title = previewTitleKey else {
+            return nil
+        }
+
+        return WindowIdentityKey(title: title, frame: WindowFrameKey(frame))
+    }
 }
 
 // WindowStreams will hold a buffer of WindowStreams
@@ -83,19 +135,62 @@ class WindowStreamClient {
             onScreenWindowsOnly: true
         )
         
-        var fqnToWindow : [String : Window] = [:]
+        var windowsByIdentity: [WindowIdentityKey: [Window]] = [:]
+        var windowsByTitle: [WindowTitleKey: [Window]] = [:]
         for window in windows {
-            fqnToWindow[window.fqn()] = window
+            windowsByTitle[window.previewTitleKey, default: []].append(window)
+            if let key = window.previewIdentityKey {
+                windowsByIdentity[key, default: []].append(window)
+            }
         }
-            
-        var windowMap : [Window: SCWindow] = [:]
+
+        var matchedWindows: Set<Window> = []
+        var windowMap: [Window: SCWindow] = [:]
         for scWindow in content.windows {
-            let key = SCWindowKey(window: scWindow)
-            if let window = fqnToWindow[key] {
+            if let key = scWindow.previewIdentityKey,
+               let window = Self.popFirst(for: key, from: &windowsByIdentity, excluding: matchedWindows) {
+                matchedWindows.insert(window)
+                windowMap[window] = scWindow
+                continue
+            }
+
+            if let title = scWindow.previewTitleKey,
+               let window = Self.uniqueCandidate(for: title, from: windowsByTitle, excluding: matchedWindows) {
+                matchedWindows.insert(window)
                 windowMap[window] = scWindow
             }
         }
         
         return windowMap
+    }
+
+    private static func popFirst<Key: Hashable>(for key: Key, from matches: inout [Key: [Window]], excluding matchedWindows: Set<Window>) -> Window? {
+        guard var windows = matches[key] else {
+            return nil
+        }
+
+        windows.removeAll(where: { matchedWindows.contains($0) })
+        guard let window = windows.first else {
+            matches.removeValue(forKey: key)
+            return nil
+        }
+
+        windows.removeFirst()
+        if windows.isEmpty {
+            matches.removeValue(forKey: key)
+        } else {
+            matches[key] = windows
+        }
+
+        return window
+    }
+
+    private static func uniqueCandidate(for key: WindowTitleKey, from matches: [WindowTitleKey: [Window]], excluding matchedWindows: Set<Window>) -> Window? {
+        let candidates = (matches[key] ?? []).filter { !matchedWindows.contains($0) }
+        guard candidates.count == 1 else {
+            return nil
+        }
+
+        return candidates[0]
     }
 }
