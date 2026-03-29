@@ -21,18 +21,57 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         
         ensureAccessibilityPermission()
+        ConfigStore.shared.reload()
         Task {
             await ApplicationIndex.shared.preload()
         }
-        setupHotKey()
+        applyConfiguredHotKey()
     }
     
-    private func setupHotKey() {
-        hotKey = HotKey(key: .tab, modifiers: [.option])
+    private func applyConfiguredHotKey() {
+        let keyCombo = ConfigStore.shared.config.trigger.keyCombo
+        if hotKey?.keyCombo == keyCombo {
+            return
+        }
+
+        hotKey = nil
+        hotKey = HotKey(keyCombo: keyCombo)
         hotKey?.keyDownHandler = { [weak self] in
             DispatchQueue.main.async {
-                self?.toggleWindow()
+                self?.handleTrigger()
             }
+        }
+    }
+
+    private func reloadConfigForOpen() {
+        ConfigStore.shared.reloadIfNeededForOpen()
+        applyConfiguredHotKey()
+    }
+
+    func handleTrigger() {
+        reloadConfigForOpen()
+        toggleWindow()
+    }
+
+    func openSwitcherFromMenu() {
+        reloadConfigForOpen()
+        showWindow()
+    }
+
+    func openConfigFileFromMenu() {
+        do {
+            let fileURL = try ConfigLoader.ensureConfigFileExists()
+            if !NSWorkspace.shared.open(fileURL) {
+                presentErrorAlert(
+                    title: "Unable to Open Config",
+                    message: "Window Switcher could not open \(fileURL.path)."
+                )
+            }
+        } catch {
+            presentErrorAlert(
+                title: "Unable to Open Config",
+                message: error.localizedDescription
+            )
         }
     }
     
@@ -51,7 +90,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let cp = ContentPanel(
             closeWindow: { [weak self] in self?.closeWindow() },
             windowClient: windowClient,
-            streamClient: streamClient
+            streamClient: streamClient,
+            triggerShortcut: ConfigStore.shared.config.trigger
         )
         
         window = cp
@@ -92,5 +132,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             NSApp.terminate(nil)
         }
+    }
+
+    private func presentErrorAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }

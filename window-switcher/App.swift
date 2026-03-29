@@ -7,7 +7,6 @@
 
 import SwiftUI
 import AppKit
-import Carbon
 
 // periphery:ignore
 var activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Prevent App Nap to preserve responsiveness")
@@ -20,6 +19,7 @@ struct window_switcherApp: App {
     
     var body: some Scene {
         MenuBarExtra("Windows", systemImage: "macwindow") {
+            let configStore = ConfigStore.shared
             HStack(spacing: 10) {
                 Text("Window Switcher (v\(versionIdentifier))")
                 Button("Report an Issue...") {
@@ -29,9 +29,19 @@ struct window_switcherApp: App {
                     NSWorkspace.shared.open(url)
                 }
                 Divider()
-                Button("Open Switcher") {
-                    appDelegate.showWindow()
-                }.keyboardShortcut("\t", modifiers: .option)
+                if let shortcut = configStore.config.trigger.menuShortcut {
+                    Button("Open Switcher") {
+                        appDelegate.openSwitcherFromMenu()
+                    }
+                    .keyboardShortcut(shortcut)
+                } else {
+                    Button("Open Switcher (\(configStore.config.trigger.displayString))") {
+                        appDelegate.openSwitcherFromMenu()
+                    }
+                }
+                Button("Open Config...") {
+                    appDelegate.openConfigFileFromMenu()
+                }
                 Button("Refresh Windows") {
                     appDelegate.refreshWindows()
                 }.keyboardShortcut("r")

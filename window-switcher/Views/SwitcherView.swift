@@ -9,12 +9,19 @@ struct SwitcherView: View {
     let closeWindow: () -> Void
     let windowClient: WindowClient
     let streamClient: WindowStreamClient
+    let triggerShortcut: TriggerShortcut
     @State private var viewModel: ViewModel
 
-    init(closeWindow: @escaping () -> Void, windowClient: WindowClient, streamClient: WindowStreamClient) {
+    init(
+        closeWindow: @escaping () -> Void,
+        windowClient: WindowClient,
+        streamClient: WindowStreamClient,
+        triggerShortcut: TriggerShortcut
+    ) {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
+        self.triggerShortcut = triggerShortcut
         _viewModel = State(initialValue: ViewModel(windowClient: windowClient, streamClient: streamClient))
     }
     
@@ -88,6 +95,15 @@ struct SwitcherView: View {
                 .padding(.bottom, 16)
         }
         .onKeyPress() { key in
+            if triggerShortcut.matches(
+                key: key.key,
+                characters: key.characters,
+                modifiers: key.modifiers
+            ) {
+                closeWindow()
+                return KeyPress.Result.handled
+            }
+
             switch key.key {
             case .upArrow:
                 viewModel.selectPrev()
@@ -109,9 +125,7 @@ struct SwitcherView: View {
                 }
                 break
             case .tab:
-                if key.modifiers.contains(.option) {
-                    closeWindow()
-                } else {
+                if !key.modifiers.contains(.option) {
                     viewModel.selectNext()
                 }
                 break

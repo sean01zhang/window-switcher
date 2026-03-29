@@ -5,11 +5,18 @@ class ContentPanel: NSPanel {
     private let closeWindow: () -> Void
     private let windowClient: WindowClient
     private let streamClient: WindowStreamClient
+    private let triggerShortcut: TriggerShortcut
 
-    init(closeWindow: @escaping () -> Void, windowClient: WindowClient, streamClient: WindowStreamClient) {
+    init(
+        closeWindow: @escaping () -> Void,
+        windowClient: WindowClient,
+        streamClient: WindowStreamClient,
+        triggerShortcut: TriggerShortcut
+    ) {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
+        self.triggerShortcut = triggerShortcut
         super.init(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel, .titled],
@@ -36,7 +43,12 @@ class ContentPanel: NSPanel {
     }
     
     private func setupView() {
-        let sv = SwitcherView(closeWindow: closeWindow, windowClient: windowClient, streamClient: streamClient)
+        let sv = SwitcherView(
+            closeWindow: closeWindow,
+            windowClient: windowClient,
+            streamClient: streamClient,
+            triggerShortcut: triggerShortcut
+        )
         let hostingView = NSHostingView(rootView: sv)
         self.contentView = hostingView
         
