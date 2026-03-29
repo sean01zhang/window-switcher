@@ -34,7 +34,10 @@ extension SwitcherView {
                         }
 
                         do {
-                            let preview = try await self.streamClient.getWindowPreview(for: w)
+                            let preview = try await self.streamClient.getWindowPreview(
+                                for: w,
+                                among: self.windowClient.getWindows()
+                            )
                             guard !Task.isCancelled, self.selectedItem == .window(w) else {
                                 return
                             }

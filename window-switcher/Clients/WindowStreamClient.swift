@@ -117,16 +117,20 @@ class WindowStreamClient {
         windowMap = try await getInitialMap(for: windows)
     }
     
-    public func getWindowPreview(for window: Window) async throws -> CGImage? {
+    public func getWindowPreview(for window: Window, among windows: [Window]) async throws -> CGImage? {
         if let initialLoadTask {
             await initialLoadTask.value
         }
 
-        if let w = windowMap[window] {
-            return try await WindowStreamClient.getImage(for: w)
-        } else {
+        if windowMap[window] == nil {
+            try await refresh(windows)
+        }
+
+        guard let w = windowMap[window] else {
             return nil
         }
+
+        return try await WindowStreamClient.getImage(for: w)
     }
     
     private func getInitialMap(for windows: [Window]) async throws -> [Window: SCWindow] {

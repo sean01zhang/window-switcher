@@ -66,6 +66,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func refreshWindows() {
+        windowClient.refresh()
+
+        Task { [windowClient, streamClient] in
+            do {
+                try await streamClient.refresh(windowClient.getWindows())
+            } catch {
+                print("error: refresh window previews: \(error)")
+            }
+        }
+    }
+
     private func ensureAccessibilityPermission() {
         if !A11yClient.ensurePrompt() {
             let alert = NSAlert()

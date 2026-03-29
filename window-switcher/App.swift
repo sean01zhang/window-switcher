@@ -33,7 +33,7 @@ struct window_switcherApp: App {
                     appDelegate.showWindow()
                 }.keyboardShortcut("\t", modifiers: .option)
                 Button("Refresh Windows") {
-                    appDelegate.windowClient.refresh()
+                    appDelegate.refreshWindows()
                 }.keyboardShortcut("r")
                 Divider()
                 Button("Quit", role: .destructive) {
