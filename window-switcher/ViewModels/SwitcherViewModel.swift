@@ -29,13 +29,7 @@ enum SwitcherSearchResults {
         guard resultCount > 0 else {
             return nil
         }
-
-        switch mode {
-        case .blankQuery:
-            return resultCount > 1 ? 1 : 0
-        case .searchQuery:
-            return 0
-        }
+        return 0
     }
 
     static func compareSearchResults(

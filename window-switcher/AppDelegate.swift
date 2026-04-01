@@ -39,6 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotKey?.keyDownHandler = { [weak self] in
             DispatchQueue.main.async {
                 self?.handleTrigger()
+                self?.hotKey = nil
             }
         }
     }
@@ -50,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func handleTrigger() {
         reloadConfigForOpen()
-        toggleWindow()
+        showWindow()
     }
 
     func openSwitcherFromMenu() {
@@ -75,14 +76,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    func toggleWindow() {
-        if window == nil {
-            showWindow()
-        } else {
-            closeWindow()
-        }
-    }
-    
     func showWindow() {
         // Make sure there is only one shown.
         self.closeWindow()
@@ -103,6 +96,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let w = window {
             w.close()
             window = nil
+            applyConfiguredHotKey()
         }
     }
 
