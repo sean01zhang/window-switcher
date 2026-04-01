@@ -30,7 +30,13 @@ private func getWindowAttribute(
         return nil
     }
 
-    return valueRef as! AXUIElement
+    // Ensure the CFTypeRef is actually an AXUIElement before bridging.
+    if CFGetTypeID(valueRef) == AXUIElementGetTypeID() {
+        // Safe to force-cast after verifying type ID.
+        return (valueRef as! AXUIElement)
+    } else {
+        return nil
+    }
 }
 
 private func getRole(element: AXUIElement) -> String? {
