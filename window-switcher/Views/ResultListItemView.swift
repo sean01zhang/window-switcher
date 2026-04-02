@@ -13,6 +13,19 @@ struct ResultListItemView: View {
     let item: SearchItem
     let isSelected: Bool
     let fontSize: CGFloat = 14
+    let icon: NSImage
+
+    init(item: SearchItem, isSelected: Bool) {
+        self.item = item
+        self.isSelected = isSelected
+        switch item {
+        case .window(let w):
+            self.icon = NSRunningApplication(processIdentifier: w.appPID)?.icon
+                ?? NSImage(named: NSImage.applicationIconName)!
+        case .application(let app):
+            self.icon = NSWorkspace.shared.icon(forFile: app.url.path)
+        }
+    }
 
     func textColorForAccentColor() -> Color {
         // Calculate luminance of the accent color
@@ -38,25 +51,12 @@ struct ResultListItemView: View {
         }
     }
 
-    // Resolve the app icon from the system.
-    // For windows: look up the running process by PID to get its icon.
-    // For applications: use NSWorkspace to get the icon from the .app bundle path.
-    private func appIcon() -> NSImage {
-        switch item {
-        case .window(let w):
-            return NSRunningApplication(processIdentifier: w.appPID)?.icon
-                ?? NSImage(named: NSImage.applicationIconName)!
-        case .application(let app):
-            return NSWorkspace.shared.icon(forFile: app.url.path)
-        }
-    }
-
     var body: some View {
         HStack(spacing: 8) {
-            // App icon alongside the window/app name
-            Image(nsImage: appIcon())
+            Image(nsImage: icon)
                 .resizable()
                 .frame(width: 20, height: 20)
+                .accessibilityHidden(true)
             Text(text())
                 // Yes you need maxHeight AND maxWidth infinity to
                 // make the text box extend all the way.
