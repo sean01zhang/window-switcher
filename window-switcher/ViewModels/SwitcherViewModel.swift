@@ -108,8 +108,8 @@ extension SwitcherView {
         // Icon caches keyed by PID (windows) and URL path (apps).
         // Valid for the lifetime of the ViewModel (one switcher session),
         // since PIDs and app bundles don't change mid-session.
-        private var windowIconCache: [Int32: NSImage] = [:]
-        private var appIconCache: [String: NSImage] = [:]
+        @ObservationIgnored private var windowIconCache: [Int32: NSImage] = [:]
+        @ObservationIgnored private var appIconCache: [String: NSImage] = [:]
 
         // Utilities
         let windowClient: WindowClient
