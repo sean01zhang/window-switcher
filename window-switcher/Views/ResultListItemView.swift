@@ -21,7 +21,8 @@ struct ResultListItemView: View {
         switch item {
         case .window(let w):
             self.icon = NSRunningApplication(processIdentifier: w.appPID)?.icon
-                ?? NSImage(named: NSImage.applicationIconName)!
+                ?? NSImage(named: NSImage.applicationIconName)
+                ?? NSImage()
         case .application(let app):
             self.icon = NSWorkspace.shared.icon(forFile: app.url.path)
         }
