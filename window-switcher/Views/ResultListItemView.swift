@@ -38,8 +38,21 @@ struct ResultListItemView: View {
         }
     }
 
+    private func appIcon() -> NSImage {
+        switch item {
+        case .window(let w):
+            return NSRunningApplication(processIdentifier: w.appPID)?.icon
+                ?? NSWorkspace.shared.icon(forFile: "/Applications")
+        case .application(let app):
+            return NSWorkspace.shared.icon(forFile: app.url.path)
+        }
+    }
+
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
+            Image(nsImage: appIcon())
+                .resizable()
+                .frame(width: 20, height: 20)
             Text(text())
                 // Yes you need maxHeight AND maxWidth infinity to
                 // make the text box extend all the way.
