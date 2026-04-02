@@ -105,6 +105,12 @@ extension SwitcherView {
         }
         var selectedItemPreview: CGImage?
 
+        // Icon caches keyed by PID (windows) and URL path (apps).
+        // Valid for the lifetime of the ViewModel (one switcher session),
+        // since PIDs and app bundles don't change mid-session.
+        @ObservationIgnored private var windowIconCache: [Int32: NSImage] = [:]
+        @ObservationIgnored private var appIconCache: [String: NSImage] = [:]
+
         // Utilities
         let windowClient: WindowClient
         let streamClient: WindowStreamClient
@@ -129,6 +135,29 @@ extension SwitcherView {
 
             // Perform some cleanup.
             searchText = ""
+        }
+
+        /// Returns the cached app icon for a search item, fetching and caching on first access.
+        func icon(for item: SearchItem) -> NSImage {
+            switch item {
+            case .window(let w):
+                if let cached = windowIconCache[w.appPID] {
+                    return cached
+                }
+                let img = NSRunningApplication(processIdentifier: w.appPID)?.icon
+                    ?? NSImage(named: NSImage.applicationIconName)
+                    ?? NSImage()
+                windowIconCache[w.appPID] = img
+                return img
+            case .application(let app):
+                let path = app.url.path
+                if let cached = appIconCache[path] {
+                    return cached
+                }
+                let img = NSWorkspace.shared.icon(forFile: path)
+                appIconCache[path] = img
+                return img
+            }
         }
 
         private func curSelectedItemIndex() -> Int? {

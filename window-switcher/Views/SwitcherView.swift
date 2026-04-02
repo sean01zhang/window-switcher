@@ -79,7 +79,7 @@ struct SwitcherView: View {
     }
 
     private func rowView(for item: SearchItem) -> some View {
-        ResultListItemView(item: item, isSelected: item == viewModel.selectedItem)
+        ResultListItemView(item: item, isSelected: item == viewModel.selectedItem, icon: viewModel.icon(for: item))
             .onTapGesture {
                 if item == viewModel.selectedItem {
                     viewModel.enterItem(item)

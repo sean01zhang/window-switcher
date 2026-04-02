@@ -13,6 +13,7 @@ struct ResultListItemView: View {
     let item: SearchItem
     let isSelected: Bool
     let fontSize: CGFloat = 14
+    let icon: NSImage
 
     func textColorForAccentColor() -> Color {
         // Calculate luminance of the accent color
@@ -39,7 +40,11 @@ struct ResultListItemView: View {
     }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
+            Image(nsImage: icon)
+                .resizable()
+                .frame(width: 20, height: 20)
+                .accessibilityHidden(true)
             Text(text())
                 // Yes you need maxHeight AND maxWidth infinity to
                 // make the text box extend all the way.
