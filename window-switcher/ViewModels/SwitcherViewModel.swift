@@ -104,6 +104,7 @@ extension SwitcherView {
             }
         }
         var selectedItemPreview: CGImage?
+        private var iconCache: [Int32: NSImage] = [:]
 
         // Utilities
         let windowClient: WindowClient
@@ -129,6 +130,22 @@ extension SwitcherView {
 
             // Perform some cleanup.
             searchText = ""
+        }
+
+        func icon(for item: SearchItem) -> NSImage {
+            switch item {
+            case .window(let w):
+                if let cached = iconCache[w.appPID] {
+                    return cached
+                }
+                let img = NSRunningApplication(processIdentifier: w.appPID)?.icon
+                    ?? NSImage(named: NSImage.applicationIconName)
+                    ?? NSImage()
+                iconCache[w.appPID] = img
+                return img
+            case .application(let app):
+                return NSWorkspace.shared.icon(forFile: app.url.path)
+            }
         }
 
         private func curSelectedItemIndex() -> Int? {
@@ -202,6 +219,7 @@ extension SwitcherView {
             mode: SwitcherSearchMode
         ) {
             let results = SwitcherSearchResults.orderedItems(from: resultScores, mode: mode)
+            iconCache = [:]
             searchItems = results
 
             if let selectedIndex = SwitcherSearchResults.initialSelectionIndex(

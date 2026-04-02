@@ -15,19 +15,6 @@ struct ResultListItemView: View {
     let fontSize: CGFloat = 14
     let icon: NSImage
 
-    init(item: SearchItem, isSelected: Bool) {
-        self.item = item
-        self.isSelected = isSelected
-        switch item {
-        case .window(let w):
-            self.icon = NSRunningApplication(processIdentifier: w.appPID)?.icon
-                ?? NSImage(named: NSImage.applicationIconName)
-                ?? NSImage()
-        case .application(let app):
-            self.icon = NSWorkspace.shared.icon(forFile: app.url.path)
-        }
-    }
-
     func textColorForAccentColor() -> Color {
         // Calculate luminance of the accent color
         let accentColor = NSColor(Color.accentColor).usingColorSpace(.sRGB)!
