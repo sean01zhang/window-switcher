@@ -7,19 +7,22 @@ class ContentPanel: NSPanel {
     private let streamClient: WindowStreamClient
     private let triggerShortcut: TriggerShortcut
     private let navigation: NavigationConfig
+    private let resultListItem: ResultListItemConfig
 
     init(
         closeWindow: @escaping () -> Void,
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
         triggerShortcut: TriggerShortcut,
-        navigation: NavigationConfig
+        navigation: NavigationConfig,
+        resultListItem: ResultListItemConfig
     ) {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
         self.triggerShortcut = triggerShortcut
         self.navigation = navigation
+        self.resultListItem = resultListItem
         super.init(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel, .titled],
@@ -51,7 +54,8 @@ class ContentPanel: NSPanel {
             windowClient: windowClient,
             streamClient: streamClient,
             triggerShortcut: triggerShortcut,
-            navigation: navigation
+            navigation: navigation,
+            resultListItem: resultListItem
         )
         let hostingView = NSHostingView(rootView: sv)
         self.contentView = hostingView

@@ -3,13 +3,25 @@ import Foundation
 struct AppConfig: Equatable {
     var trigger: TriggerShortcut
     var navigation: NavigationConfig
+    var resultListItem: ResultListItemConfig
 
-    static let `default` = AppConfig(trigger: .default, navigation: .default)
+    static let `default` = AppConfig(
+        trigger: .default,
+        navigation: .default,
+        resultListItem: .default
+    )
 }
 
 struct RawAppConfig: Decodable {
     var trigger: RawShortcutConfig?
     var navigation: RawNavigationConfig?
+    var resultListItem: RawResultListItemConfig?
+
+    enum CodingKeys: String, CodingKey {
+        case trigger
+        case navigation
+        case resultListItem = "result"
+    }
 }
 
 struct RawShortcutConfig: Decodable {
@@ -50,4 +62,27 @@ struct RawShortcutListConfig: Decodable {
         let single = try RawShortcutConfig(from: decoder)
         self.shortcuts = [single]
     }
+}
+
+struct ResultListItemConfig: Equatable {
+    var window: ResultListItemTemplate
+    var app: ResultListItemTemplate
+
+    static let `default` = ResultListItemConfig(
+        window: ResultListItemTemplate(template: "{app_name}: {title}"),
+        app: ResultListItemTemplate(template: "Open {name}")
+    )
+}
+
+struct ResultListItemTemplate: Equatable {
+    var template: String
+}
+
+struct RawResultListItemConfig: Decodable {
+    var window: RawResultListItemFormat?
+    var app: RawResultListItemFormat?
+}
+
+struct RawResultListItemFormat: Decodable {
+    var template: String?
 }

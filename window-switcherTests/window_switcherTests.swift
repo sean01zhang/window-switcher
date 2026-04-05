@@ -12,6 +12,7 @@ struct window_switcherTests {
 
         #expect(config.trigger == .default)
         #expect(config.navigation == .default)
+        #expect(config.resultListItem == .default)
     }
 
     @Test func configAllowsRemappingNavigationBindings() {
@@ -78,6 +79,83 @@ struct window_switcherTests {
         #expect(config.trigger == TriggerShortcut(key: .space, modifiers: [.command]))
         #expect(config.navigation.next == NavigationConfig.default.next)
         #expect(config.navigation.previous == [TriggerShortcut(key: .u, modifiers: [.control])])
+    }
+
+    @Test func configAllowsCustomResultListItemFormatting() {
+        let config = ConfigLoader.load(from: Data("""
+        [result.window]
+        template = "{title} [{app_name}]"
+
+        [result.app]
+        template = "{name} at {path}"
+        """.utf8))
+
+        #expect(config.resultListItem.window == ResultListItemTemplate(template: "{title} [{app_name}]"))
+        #expect(config.resultListItem.app == ResultListItemTemplate(template: "{name} at {path}"))
+    }
+
+    @Test func blankResultListItemTemplateFallsBackToDefaults() {
+        let config = ConfigLoader.load(from: Data("""
+        [result.window]
+        template = ""
+        """.utf8))
+
+        #expect(config.resultListItem.window == ResultListItemConfig.default.window)
+    }
+
+    @Test func resultListItemFormatterUsesConfiguredWindowProperties() {
+        let window = makeWindow(pid: 601, appName: "Mail", title: "Inbox")
+        let item = SearchItem.window(window)
+        let config = ResultListItemConfig(
+            window: ResultListItemTemplate(template: "{title} [{app_name}]"),
+            app: ResultListItemConfig.default.app
+        )
+
+        let text = ResultListItemTextFormatter.text(for: item, config: config)
+
+        #expect(text == "Inbox [Mail]")
+    }
+
+    @Test func resultListItemFormatterUsesConfiguredAppProperties() {
+        let application = Application(
+            name: "Notes",
+            url: URL(fileURLWithPath: "/Applications/Notes.app")
+        )
+        let item = SearchItem.application(application)
+        let config = ResultListItemConfig(
+            window: ResultListItemConfig.default.window,
+            app: ResultListItemTemplate(template: "{name} -> {path}")
+        )
+
+        let text = ResultListItemTextFormatter.text(for: item, config: config)
+
+        #expect(text == "Notes -> /Applications/Notes.app")
+    }
+
+    @Test func resultListItemFormatterLeavesUnknownPlaceholdersUntouched() {
+        let window = makeWindow(pid: 602, appName: "Mail", title: "Inbox")
+        let item = SearchItem.window(window)
+        let config = ResultListItemConfig(
+            window: ResultListItemTemplate(template: "{app_name} {missing}"),
+            app: ResultListItemConfig.default.app
+        )
+
+        let text = ResultListItemTextFormatter.text(for: item, config: config)
+
+        #expect(text == "Mail {missing}")
+    }
+
+    @Test func resultListItemFormatterDoesNotReexpandInsertedValues() {
+        let window = makeWindow(pid: 603, appName: "Mail", title: "Draft {app_name}")
+        let item = SearchItem.window(window)
+        let config = ResultListItemConfig(
+            window: ResultListItemTemplate(template: "{title}"),
+            app: ResultListItemConfig.default.app
+        )
+
+        let text = ResultListItemTextFormatter.text(for: item, config: config)
+
+        #expect(text == "Draft {app_name}")
     }
 
     @Test func blankQueryUsesRecentWindowOrder() {

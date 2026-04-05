@@ -21,6 +21,12 @@ previous = [
   { key = "k", modifiers = ["control"] },
   { key = "p", modifiers = ["control"] }
 ]
+
+[result.window]
+template = "{app_name}: {title}"
+
+[result.app]
+template = "Open {name}"
 ```
 
 ## Config Keys
@@ -31,6 +37,8 @@ previous = [
 | `trigger` | `modifiers` | `array<string>` | `["option"]` | Modifier keys pressed with `trigger.key`. |
 | `navigation` | `next` | `array<table>` | `[{ key = "j", modifiers = ["control"] }, { key = "n", modifiers = ["control"] }]` | One or more shortcuts that move to the next result. |
 | `navigation` | `previous` | `array<table>` | `[{ key = "k", modifiers = ["control"] }, { key = "p", modifiers = ["control"] }]` | One or more shortcuts that move to the previous result. |
+| `result.window` | `template` | `string` | `"{app_name}: {title}"` | Window row template. Use `{property_name}` placeholders. |
+| `result.app` | `template` | `string` | `"Open {name}"` | App row template. Use `{property_name}` placeholders. |
 
 The default navigation bindings add `Control+J` and `Control+N` for next, plus `Control+K` and `Control+P` for previous. Arrow keys still work, and `Tab`
 still advances to the next result.
@@ -56,6 +64,40 @@ For backward compatibility, a single binding can still be written as a table:
 key = "j"
 modifiers = ["control"]
 ```
+
+## Result List Item Formatting
+
+Window and app rows can be customized independently with `{property_name}` placeholders.
+
+```toml
+[result.window]
+template = "{title} [{app_name}]"
+
+[result.app]
+template = "{name} -> {path}"
+```
+
+Supported window properties:
+
+- `app_name`
+- `title`
+- `name`
+- `fqn`
+- `id`
+- `app_pid`
+- `x`
+- `y`
+- `width`
+- `height`
+
+Supported app properties:
+
+- `name`
+- `path`
+
+Unknown placeholders are left unchanged.
+
+Frame-based window properties (`x`, `y`, `width`, `height`) resolve to `0` when the window frame is unavailable.
 
 ## Supported Modifier Values
 

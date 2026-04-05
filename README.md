@@ -35,6 +35,12 @@ previous = [
   { key = "k", modifiers = ["control"] },
   { key = "p", modifiers = ["control"] }
 ]
+
+[result.window]
+template = "{app_name}: {title}"
+
+[result.app]
+template = "Open {name}"
 ```
 
 Supported trigger modifiers are `command`, `option`, `control`, and `shift`. If the file is missing or invalid, Window Switcher falls back to the default `Option+Tab` trigger.
