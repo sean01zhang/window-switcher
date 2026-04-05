@@ -57,6 +57,7 @@ extension SwitcherView {
     class ViewModel {
         // State
         var searchItems: [SearchItem] = []
+        var windowPreviewCache: [Window: CGImage] = [:]
         private var applicationSearchTask: Task<Void, Never>?
         private var previewTask: Task<Void, Never>?
         var searchText: String = "" {
@@ -68,46 +69,9 @@ extension SwitcherView {
         var selectedItem: SearchItem? = nil {
             didSet {
                 previewTask?.cancel()
-
-                guard let selectedItem else {
-                    selectedItemPreview = nil
-                    selectedItemAppIcon = nil
-                    return
-                }
-
-                switch selectedItem {
-                case .window(let w):
-                    selectedItemPreview = streamClient.cachedWindowPreview(for: w)
-                    selectedItemAppIcon = icon(for: .window(w))
-                    previewTask = Task { [weak self] in
-                        guard let self else {
-                            return
-                        }
-
-                        do {
-                            let preview = try await self.streamClient.getWindowPreview(
-                                for: w,
-                                among: self.windowClient.getWindows()
-                            )
-                            guard !Task.isCancelled, self.selectedItem == .window(w) else {
-                                return
-                            }
-                            self.selectedItemPreview = preview
-                        } catch is CancellationError {
-                            return
-                        } catch {
-                            print("error: get window preview: \(error)")
-                        }
-                    }
-                case .application:
-                    selectedItemPreview = nil
-                    selectedItemAppIcon = icon(for: selectedItem)
-                    previewTask = nil
-                }
+                ensurePreviewLoaded(for: selectedItem)
             }
         }
-        var selectedItemPreview: CGImage?
-        var selectedItemAppIcon: NSImage?
 
         // Icon caches keyed by PID (windows) and URL path (apps).
         // Valid for the lifetime of the ViewModel (one switcher session),
@@ -161,6 +125,47 @@ extension SwitcherView {
                 let img = NSWorkspace.shared.icon(forFile: path)
                 appIconCache[path] = img
                 return img
+            }
+        }
+
+        func preview(for item: SearchItem?) -> CGImage? {
+            guard case .window(let window) = item else {
+                return nil
+            }
+
+            return windowPreviewCache[window]
+        }
+
+        private func ensurePreviewLoaded(for item: SearchItem?) {
+            guard case .window(let window) = item else {
+                previewTask = nil
+                return
+            }
+
+            guard windowPreviewCache[window] == nil else {
+                previewTask = nil
+                return
+            }
+
+            previewTask = Task { [weak self] in
+                guard let self else {
+                    return
+                }
+
+                do {
+                    let preview = try await self.streamClient.getWindowPreview(
+                        for: window,
+                        among: self.windowClient.getWindows()
+                    )
+                    guard !Task.isCancelled, self.selectedItem == .window(window) else {
+                        return
+                    }
+                    self.windowPreviewCache[window] = preview
+                } catch is CancellationError {
+                    return
+                } catch {
+                    print("error: get window preview: \(error)")
+                }
             }
         }
 
