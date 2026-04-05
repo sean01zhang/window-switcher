@@ -64,6 +64,7 @@ class WindowStreamClient {
     private var windowMap: [Window: SCWindow] = [:]
     private var previewCache: [WindowIdentityKey: CGImage] = [:]
     private var initialLoadTask: Task<Void, Never>?
+    private var prefetchTask: Task<Void, Never>?
     
     init(_ windows: [Window]) {
         initialLoadTask = Task { [weak self] in
@@ -73,6 +74,7 @@ class WindowStreamClient {
 
     deinit {
         initialLoadTask?.cancel()
+        prefetchTask?.cancel()
     }
 
     private func loadInitialMap(for windows: [Window]) async {
@@ -116,13 +118,16 @@ class WindowStreamClient {
     }
 
     public func prefetchPreviews(for windows: [Window]) {
-        Task {
-            if let initialLoadTask {
+        prefetchTask?.cancel()
+        prefetchTask = Task { [weak self] in
+            if let initialLoadTask = self?.initialLoadTask {
                 await initialLoadTask.value
             }
 
             // Refresh the map so newly opened windows are included.
-            try? await refresh(windows)
+            try? await self?.refresh(windows)
+
+            guard let self else { return }
 
             await withTaskGroup(of: Void.self) { group in
                 for window in windows {
@@ -135,11 +140,11 @@ class WindowStreamClient {
                         continue
                     }
 
-                    group.addTask {
+                    group.addTask { [weak self] in
                         do {
                             let image = try await WindowStreamClient.getImage(for: scWindow)
                             await MainActor.run {
-                                self.cache(image, for: window)
+                                self?.cache(image, for: window)
                             }
                         } catch {
                             // Silently skip windows that fail to capture.
