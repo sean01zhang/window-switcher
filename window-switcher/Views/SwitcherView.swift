@@ -166,10 +166,7 @@ struct SwitcherView: View {
                 closeWindow()
             }
         case .return:
-            if let item = viewModel.selectedItem {
-                viewModel.enterItem(item)
-                closeWindow()
-            }
+            enterSelectedItem()
         case .tab:
             if !key.modifiers.contains(.option) || isQuickSwitch {
                 viewModel.selectNext()
@@ -189,6 +186,11 @@ struct SwitcherView: View {
 
         if matchesAnyShortcut(navigation.next, keyPress: key) {
             viewModel.selectNext()
+            return true
+        }
+
+        if matchesAnyShortcut(navigation.enterSelection, keyPress: key) {
+            enterSelectedItem()
             return true
         }
 
@@ -222,6 +224,15 @@ struct SwitcherView: View {
         default:
             return false
         }
+    }
+
+    private func enterSelectedItem() {
+        guard let item = viewModel.selectedItem else {
+            return
+        }
+
+        viewModel.enterItem(item)
+        closeWindow()
     }
 
     private func installModifierMonitors() {

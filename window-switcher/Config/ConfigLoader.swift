@@ -34,6 +34,9 @@ struct ConfigLoader {
       { key = "k", modifiers = ["control"] },
       { key = "p", modifiers = ["control"] }
     ]
+    enter_selection = [
+      { key = "y", modifiers = ["control"] }
+    ]
 
     [result.window]
     template = "{app_name}: {title}"
@@ -91,6 +94,17 @@ struct ConfigLoader {
                     config.navigation.previous = previous
                 } else {
                     print("warning: invalid navigation.previous config, falling back to default")
+                }
+            }
+
+            if let rawEnterSelection = rawNavigation.enterSelection {
+                if let enterSelection = resolveShortcutList(
+                    rawEnterSelection.shortcuts,
+                    warningLabel: "navigation.enter_selection"
+                ) {
+                    config.navigation.enterSelection = enterSelection
+                } else {
+                    print("warning: invalid navigation.enter_selection config, falling back to default")
                 }
             }
         }

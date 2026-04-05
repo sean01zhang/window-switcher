@@ -21,6 +21,9 @@ previous = [
   { key = "k", modifiers = ["control"] },
   { key = "p", modifiers = ["control"] }
 ]
+enter_selection = [
+  { key = "y", modifiers = ["control"] }
+]
 
 [result.window]
 template = "{app_name}: {title}"
@@ -37,11 +40,12 @@ template = "Open {name}"
 | `trigger` | `modifiers` | `array<string>` | `["option"]` | Modifier keys pressed with `trigger.key`. |
 | `navigation` | `next` | `array<table>` | `[{ key = "j", modifiers = ["control"] }, { key = "n", modifiers = ["control"] }]` | One or more shortcuts that move to the next result. |
 | `navigation` | `previous` | `array<table>` | `[{ key = "k", modifiers = ["control"] }, { key = "p", modifiers = ["control"] }]` | One or more shortcuts that move to the previous result. |
+| `navigation` | `enter_selection` | `array<table>` | `[{ key = "y", modifiers = ["control"] }]` | One or more shortcuts that enter the currently selected result. |
 | `result.window` | `template` | `string` | `"{app_name}: {title}"` | Window row template. Use `{property_name}` placeholders. |
 | `result.app` | `template` | `string` | `"Open {name}"` | App row template. Use `{property_name}` placeholders. |
 
 The default navigation bindings add `Control+J` and `Control+N` for next, plus `Control+K` and `Control+P` for previous. Arrow keys still work, and `Tab`
-still advances to the next result.
+still advances to the next result. `Return` still enters the selected result, and `Control+Y` is configured as an additional default binding.
 
 You can bind multiple shortcuts to the same action:
 
@@ -54,6 +58,9 @@ next = [
 previous = [
   { key = "k", modifiers = ["control"] },
   { key = "p", modifiers = ["control"] }
+]
+enter_selection = [
+  { key = "y", modifiers = ["control"] }
 ]
 ```
 

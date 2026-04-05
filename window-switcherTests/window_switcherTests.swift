@@ -28,10 +28,15 @@ struct window_switcherTests {
         [navigation.previous]
         key = "p"
         modifiers = ["control"]
+
+        [navigation.enter_selection]
+        key = "y"
+        modifiers = ["control", "shift"]
         """.utf8))
 
         #expect(config.navigation.next == [TriggerShortcut(key: .n, modifiers: [.control, .shift])])
         #expect(config.navigation.previous == [TriggerShortcut(key: .p, modifiers: [.control])])
+        #expect(config.navigation.enterSelection == [TriggerShortcut(key: .y, modifiers: [.control, .shift])])
     }
 
     @Test func configAllowsMultipleNavigationBindingsPerAction() {
@@ -45,6 +50,10 @@ struct window_switcherTests {
           { key = "k", modifiers = ["control"] },
           { key = "p", modifiers = ["control", "shift"] }
         ]
+        enter_selection = [
+          { key = "y", modifiers = ["control"] },
+          { key = "return", modifiers = ["command"] }
+        ]
         """.utf8))
 
         #expect(
@@ -57,6 +66,12 @@ struct window_switcherTests {
             config.navigation.previous == [
                 TriggerShortcut(key: .k, modifiers: [.control]),
                 TriggerShortcut(key: .p, modifiers: [.control, .shift])
+            ]
+        )
+        #expect(
+            config.navigation.enterSelection == [
+                TriggerShortcut(key: .y, modifiers: [.control]),
+                TriggerShortcut(key: .return, modifiers: [.command])
             ]
         )
     }
@@ -74,11 +89,16 @@ struct window_switcherTests {
         [navigation.previous]
         key = "u"
         modifiers = ["control"]
+
+        [navigation.enter_selection]
+        key = "y"
+        modifiers = ["control"]
         """.utf8))
 
         #expect(config.trigger == TriggerShortcut(key: .space, modifiers: [.command]))
         #expect(config.navigation.next == NavigationConfig.default.next)
         #expect(config.navigation.previous == [TriggerShortcut(key: .u, modifiers: [.control])])
+        #expect(config.navigation.enterSelection == [TriggerShortcut(key: .y, modifiers: [.control])])
     }
 
     @Test func configAllowsCustomResultListItemFormatting() {
