@@ -142,6 +142,10 @@ class WindowStreamClient {
     }
     
     public func getWindowPreview(for window: Window, among windows: [Window]) async throws -> CGImage? {
+        if let cached = cachedWindowPreview(for: window) {
+            return cached
+        }
+
         if let initialLoadTask {
             await initialLoadTask.value
         }
