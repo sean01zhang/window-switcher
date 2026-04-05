@@ -32,6 +32,7 @@ struct RawShortcutConfig: Decodable {
 struct NavigationConfig: Equatable {
     var next: [TriggerShortcut]
     var previous: [TriggerShortcut]
+    var enterSelection: [TriggerShortcut]
 
     static let `default` = NavigationConfig(
         next: [
@@ -41,6 +42,9 @@ struct NavigationConfig: Equatable {
         previous: [
             TriggerShortcut(key: .k, modifiers: [.control]),
             TriggerShortcut(key: .p, modifiers: [.control])
+        ],
+        enterSelection: [
+            TriggerShortcut(key: .y, modifiers: [.control])
         ]
     )
 }
@@ -48,6 +52,13 @@ struct NavigationConfig: Equatable {
 struct RawNavigationConfig: Decodable {
     var next: RawShortcutListConfig?
     var previous: RawShortcutListConfig?
+    var enterSelection: RawShortcutListConfig?
+
+    enum CodingKeys: String, CodingKey {
+        case next
+        case previous
+        case enterSelection = "enter_selection"
+    }
 }
 
 struct RawShortcutListConfig: Decodable {
