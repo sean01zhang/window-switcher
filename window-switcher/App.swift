@@ -16,6 +16,7 @@ let versionIdentifier = Bundle.main.infoDictionary?["CFBundleShortVersionString"
 @main
 struct window_switcherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @State private var launchAtLoginManager = LaunchAtLoginManager.shared
     
     var body: some Scene {
         MenuBarExtra("Windows", systemImage: "macwindow") {
@@ -42,9 +43,20 @@ struct window_switcherApp: App {
                 Button("Open Config...") {
                     appDelegate.openConfigFileFromMenu()
                 }
+                Toggle(
+                    "Launch on Startup",
+                    isOn: Binding(
+                        get: { launchAtLoginManager.isEnabled },
+                        set: { appDelegate.setLaunchAtLoginEnabled($0) }
+                    )
+                )
                 Button("Refresh Windows") {
                     appDelegate.refreshWindows()
                 }.keyboardShortcut("r")
+                if launchAtLoginManager.needsApproval {
+                    Text("Waiting for Login Items approval")
+                        .foregroundStyle(.secondary)
+                }
                 Divider()
                 Button("Quit", role: .destructive) {
                     NSApplication.shared.terminate(nil)

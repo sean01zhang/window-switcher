@@ -12,6 +12,7 @@ import HotKey
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window : NSWindow?
     var hotKey : HotKey?
+    let launchAtLoginManager = LaunchAtLoginManager.shared
     
     // Long-lived clients to preserve caches across panels
     let windowClient = WindowClient()
@@ -22,6 +23,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         ensureAccessibilityPermission()
         ConfigStore.shared.reload()
+        launchAtLoginManager.refreshStatus()
         Task {
             await ApplicationIndex.shared.preload()
         }
@@ -71,6 +73,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             presentErrorAlert(
                 title: "Unable to Open Config",
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        do {
+            try launchAtLoginManager.setEnabled(enabled)
+
+            if launchAtLoginManager.needsApproval {
+                presentInfoAlert(
+                    title: "Approval Needed",
+                    message: "Approve Window Switcher in System Settings > General > Login Items to finish enabling launch on startup."
+                )
+            }
+        } catch {
+            launchAtLoginManager.refreshStatus()
+            presentErrorAlert(
+                title: "Unable to Update Launch on Startup",
                 message: error.localizedDescription
             )
         }
@@ -133,6 +154,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = title
         alert.informativeText = message
         alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private func presentInfoAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }

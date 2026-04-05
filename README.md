@@ -13,6 +13,7 @@ Window Switcher is a simple searchable window switcher for macOS.
 1. Use the configured hotkey to open the window switcher. The default is `Option+Tab`.
 2. Type to search for a window, or use arrow keys to move your selection.
 3. Press `enter` to switch to the selected window.
+4. Use the menu bar extra toggle to have Window Switcher launch on startup.
 
 ## Configuration
 
@@ -63,3 +64,4 @@ brew upgrade window-switcher
 - [x] Get window previews
 - [x] User-defined hotkey bindings
 - [x] Fuzzy-search for applications
+- [x] Launch on startup
