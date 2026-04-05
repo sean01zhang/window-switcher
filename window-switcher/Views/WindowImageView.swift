@@ -3,7 +3,6 @@ import SwiftUI
 
 struct WindowImageView: View {
     let cgImage: CGImage?
-    let selectedItem: SearchItem?
     let appImage: NSImage?
 
     var body: some View {

@@ -56,7 +56,6 @@ struct SwitcherView: View {
             ZStack {
                 WindowImageView(
                     cgImage: viewModel.preview(for: viewModel.selectedItem),
-                    selectedItem: viewModel.selectedItem,
                     appImage: viewModel.selectedItem.map(viewModel.icon(for:))
                 )
             }

@@ -57,7 +57,6 @@ extension SwitcherView {
     class ViewModel {
         // State
         var searchItems: [SearchItem] = []
-        var windowPreviewCache: [Window: CGImage] = [:]
         private var applicationSearchTask: Task<Void, Never>?
         private var previewTask: Task<Void, Never>?
         var searchText: String = "" {
@@ -133,7 +132,7 @@ extension SwitcherView {
                 return nil
             }
 
-            return windowPreviewCache[window]
+            return streamClient.cachedWindowPreview(for: window)
         }
 
         private func ensurePreviewLoaded(for item: SearchItem?) {
@@ -142,7 +141,7 @@ extension SwitcherView {
                 return
             }
 
-            guard windowPreviewCache[window] == nil else {
+            guard streamClient.cachedWindowPreview(for: window) == nil else {
                 previewTask = nil
                 return
             }
@@ -153,14 +152,13 @@ extension SwitcherView {
                 }
 
                 do {
-                    let preview = try await self.streamClient.getWindowPreview(
+                    _ = try await self.streamClient.getWindowPreview(
                         for: window,
                         among: self.windowClient.getWindows()
                     )
-                    guard !Task.isCancelled, self.selectedItem == .window(window) else {
+                    guard !Task.isCancelled else {
                         return
                     }
-                    self.windowPreviewCache[window] = preview
                 } catch is CancellationError {
                     return
                 } catch {

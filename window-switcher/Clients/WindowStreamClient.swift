@@ -4,7 +4,7 @@
 //
 //  Created by Sean Zhang on 2025-01-04.
 //
-
+import Observation
 import ScreenCaptureKit
 
 private struct WindowFrameKey: Hashable {
@@ -60,9 +60,11 @@ private extension SCWindow {
 
 // WindowStreams will hold a buffer of WindowStreams
 @MainActor
+@Observable
 class WindowStreamClient {
     private var windowMap: [Window: SCWindow] = [:]
     private var previewCache: [WindowIdentityKey: CGImage] = [:]
+    @ObservationIgnored
     private var initialLoadTask: Task<Void, Never>?
     
     init(_ windows: [Window]) {
