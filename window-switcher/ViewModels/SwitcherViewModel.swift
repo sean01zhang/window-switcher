@@ -76,7 +76,7 @@ extension SwitcherView {
 
                 switch selectedItem {
                 case .window(let w):
-                    selectedItemPreview = nil
+                    selectedItemPreview = streamClient.cachedWindowPreview(for: w)
                     previewTask = Task { [weak self] in
                         guard let self else {
                             return

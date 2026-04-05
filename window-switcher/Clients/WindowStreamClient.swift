@@ -62,6 +62,7 @@ private extension SCWindow {
 @MainActor
 class WindowStreamClient {
     private var windowMap: [Window: SCWindow] = [:]
+    private var previewCache: [WindowIdentityKey: CGImage] = [:]
     private var initialLoadTask: Task<Void, Never>?
     
     init(_ windows: [Window]) {
@@ -81,6 +82,7 @@ class WindowStreamClient {
 
         do {
             windowMap = try await getInitialMap(for: windows)
+            prunePreviewCache(for: windows)
         } catch is CancellationError {
             return
         } catch {
@@ -110,6 +112,15 @@ class WindowStreamClient {
     public func refresh(_ windows: [Window]) async throws {
         initialLoadTask = nil
         windowMap = try await getInitialMap(for: windows)
+        prunePreviewCache(for: windows)
+    }
+
+    public func cachedWindowPreview(for window: Window) -> CGImage? {
+        guard let key = window.previewIdentityKey else {
+            return nil
+        }
+
+        return previewCache[key]
     }
     
     public func getWindowPreview(for window: Window, among windows: [Window]) async throws -> CGImage? {
@@ -125,7 +136,9 @@ class WindowStreamClient {
             return nil
         }
 
-        return try await WindowStreamClient.getImage(for: w)
+        let preview = try await WindowStreamClient.getImage(for: w)
+        cache(preview, for: window)
+        return preview
     }
     
     private func getInitialMap(for windows: [Window]) async throws -> [Window: SCWindow] {
@@ -191,5 +204,20 @@ class WindowStreamClient {
         }
 
         return candidates[0]
+    }
+
+    private func cache(_ preview: CGImage?, for window: Window) {
+        guard let preview else {
+            return
+        }
+
+        if let key = window.previewIdentityKey {
+            previewCache[key] = preview
+        }
+    }
+
+    private func prunePreviewCache(for windows: [Window]) {
+        let validIdentityKeys = Set(windows.compactMap(\.previewIdentityKey))
+        previewCache = previewCache.filter { validIdentityKeys.contains($0.key) }
     }
 }
