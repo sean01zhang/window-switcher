@@ -1,16 +1,10 @@
-//
-//  ResultListItemView.swift
-//  window-switcher
-//
-//  Created by Sean Zhang on 2024-12-27.
-//
-
 import SwiftUI
 import AppKit
 
 struct ResultListItemView: View {
     @Environment(\.colorScheme) var colorScheme  // Get the system color scheme
     let item: SearchItem
+    let config: ResultListItemConfig
     let isSelected: Bool
     let fontSize: CGFloat = 14
     let icon: NSImage
@@ -31,12 +25,7 @@ struct ResultListItemView: View {
     }
 
     private func text() -> String {
-        switch item {
-        case .window(let w):
-            return w.fqn()
-        case .application(let app):
-            return "Open App: \(app.name)"
-        }
+        ResultListItemTextFormatter.text(for: item, config: config)
     }
 
     var body: some View {

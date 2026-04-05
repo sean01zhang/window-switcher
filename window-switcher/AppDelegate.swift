@@ -107,7 +107,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             windowClient: windowClient,
             streamClient: streamClient,
             triggerShortcut: config.trigger,
-            navigation: config.navigation
+            navigation: config.navigation,
+            resultListItem: config.resultListItem
         )
         
         window = cp

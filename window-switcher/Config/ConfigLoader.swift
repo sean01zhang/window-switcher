@@ -34,6 +34,12 @@ struct ConfigLoader {
       { key = "k", modifiers = ["control"] },
       { key = "p", modifiers = ["control"] }
     ]
+
+    [result.window]
+    template = "{app_name}: {title}"
+
+    [result.app]
+    template = "Open {name}"
     """
 
     static func load(from fileURL: URL = defaultConfigURL) -> AppConfig {
@@ -89,6 +95,24 @@ struct ConfigLoader {
             }
         }
 
+        if let rawResultListItem = rawConfig.resultListItem {
+            if let rawWindow = rawResultListItem.window {
+                config.resultListItem.window = resolveResultListItemTemplate(
+                    rawWindow,
+                    defaultConfig: config.resultListItem.window,
+                    warningLabel: "result.window"
+                )
+            }
+
+            if let rawApp = rawResultListItem.app {
+                config.resultListItem.app = resolveResultListItemTemplate(
+                    rawApp,
+                    defaultConfig: config.resultListItem.app,
+                    warningLabel: "result.app"
+                )
+            }
+        }
+
         return config
     }
 
@@ -110,6 +134,24 @@ struct ConfigLoader {
         }
 
         return shortcuts
+    }
+
+    private static func resolveResultListItemTemplate(
+        _ rawConfig: RawResultListItemFormat,
+        defaultConfig: ResultListItemTemplate,
+        warningLabel: String
+    ) -> ResultListItemTemplate {
+        var resolved = defaultConfig
+
+        if let template = rawConfig.template {
+            if template.isEmpty {
+                print("warning: \(warningLabel).template must not be empty")
+            } else {
+                resolved.template = template
+            }
+        }
+
+        return resolved
     }
 
     @discardableResult

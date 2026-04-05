@@ -11,6 +11,7 @@ struct SwitcherView: View {
     let streamClient: WindowStreamClient
     let triggerShortcut: TriggerShortcut
     let navigation: NavigationConfig
+    let resultListItem: ResultListItemConfig
     @State private var viewModel: ViewModel
     @State private var isQuickSwitch: Bool = true
     @State private var selectOnRelease: Bool = false
@@ -22,13 +23,15 @@ struct SwitcherView: View {
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
         triggerShortcut: TriggerShortcut,
-        navigation: NavigationConfig
+        navigation: NavigationConfig,
+        resultListItem: ResultListItemConfig
     ) {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
         self.triggerShortcut = triggerShortcut
         self.navigation = navigation
+        self.resultListItem = resultListItem
         _viewModel = State(initialValue: ViewModel(windowClient: windowClient, streamClient: streamClient))
     }
     
@@ -85,7 +88,12 @@ struct SwitcherView: View {
     }
 
     private func rowView(for item: SearchItem) -> some View {
-        ResultListItemView(item: item, isSelected: item == viewModel.selectedItem, icon: viewModel.icon(for: item))
+        ResultListItemView(
+            item: item,
+            config: resultListItem,
+            isSelected: item == viewModel.selectedItem,
+            icon: viewModel.icon(for: item)
+        )
             .onTapGesture {
                 if item == viewModel.selectedItem {
                     viewModel.enterItem(item)
