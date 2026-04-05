@@ -68,42 +68,9 @@ extension SwitcherView {
         var selectedItem: SearchItem? = nil {
             didSet {
                 previewTask?.cancel()
-
-                guard let selectedItem else {
-                    selectedItemPreview = nil
-                    return
-                }
-
-                switch selectedItem {
-                case .window(let w):
-                    selectedItemPreview = streamClient.cachedWindowPreview(for: w)
-                    previewTask = Task { [weak self] in
-                        guard let self else {
-                            return
-                        }
-
-                        do {
-                            let preview = try await self.streamClient.getWindowPreview(
-                                for: w,
-                                among: self.windowClient.getWindows()
-                            )
-                            guard !Task.isCancelled, self.selectedItem == .window(w) else {
-                                return
-                            }
-                            self.selectedItemPreview = preview
-                        } catch is CancellationError {
-                            return
-                        } catch {
-                            print("error: get window preview: \(error)")
-                        }
-                    }
-                case .application:
-                    selectedItemPreview = nil
-                    previewTask = nil
-                }
+                ensurePreviewLoaded(for: selectedItem)
             }
         }
-        var selectedItemPreview: CGImage?
 
         // Icon caches keyed by PID (windows) and URL path (apps).
         // Valid for the lifetime of the ViewModel (one switcher session),
@@ -157,6 +124,46 @@ extension SwitcherView {
                 let img = NSWorkspace.shared.icon(forFile: path)
                 appIconCache[path] = img
                 return img
+            }
+        }
+
+        func preview(for item: SearchItem?) -> CGImage? {
+            guard case .window(let window) = item else {
+                return nil
+            }
+
+            return streamClient.cachedWindowPreview(for: window)
+        }
+
+        private func ensurePreviewLoaded(for item: SearchItem?) {
+            guard case .window(let window) = item else {
+                previewTask = nil
+                return
+            }
+
+            guard streamClient.cachedWindowPreview(for: window) == nil else {
+                previewTask = nil
+                return
+            }
+
+            previewTask = Task { [weak self] in
+                guard let self else {
+                    return
+                }
+
+                do {
+                    _ = try await self.streamClient.getWindowPreview(
+                        for: window,
+                        among: self.windowClient.getWindows()
+                    )
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                } catch is CancellationError {
+                    return
+                } catch {
+                    print("error: get window preview: \(error)")
+                }
             }
         }
 

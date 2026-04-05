@@ -1,39 +1,39 @@
-//
-//  WindowImageView.swift
-//  window-switcher
-//
-//  Created by Sean Zhang on 2025-01-06.
-//
-
+import AppKit
 import SwiftUI
 
 struct WindowImageView: View {
-    @Binding var cgImage: CGImage?
-    
+    let cgImage: CGImage?
+    let appImage: NSImage?
+
     var body: some View {
-        HStack {
-            VStack {
-                Group {
-                    if let image = selectedImage() {
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(alignment: .center)
-                    } else {
-                        RoundedRectangle(cornerRadius: 4).fill(Color.gray)
-                    }
-                }
-                .frame(alignment: .center)
+        ZStack(alignment: .bottomTrailing) {
+            if let previewImage, let appImage {
+                previewImage
+                    .resizable()
+                    .scaledToFit()
+                Image(nsImage: appImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 70, height: 70)
+                    .offset(x: 5, y: 10)
+            } else if let appImage {
+                Image(nsImage: appImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+            } else {
+                RoundedRectangle(cornerRadius: 4).fill(Color.gray)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
-    func selectedImage() -> Image? {
-        if let img = cgImage {
-            let uiImage = NSImage(cgImage: img, size: .zero)
-            return Image(nsImage: uiImage)
+
+    private var previewImage: Image? {
+        guard let cgImage else {
+            return nil
         }
-        
-        return nil
+
+        return Image(nsImage: NSImage(cgImage: cgImage, size: .zero))
     }
+
 }

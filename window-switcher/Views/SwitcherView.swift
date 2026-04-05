@@ -54,7 +54,10 @@ struct SwitcherView: View {
             resultsListView
                 .padding(.trailing)
             ZStack {
-                WindowImageView(cgImage: $viewModel.selectedItemPreview)
+                WindowImageView(
+                    cgImage: viewModel.preview(for: viewModel.selectedItem),
+                    appImage: viewModel.selectedItem.map(viewModel.icon(for:))
+                )
             }
             .padding(.leading)
         }
