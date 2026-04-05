@@ -72,6 +72,7 @@ class WindowStreamClient {
         initialLoadTask = Task { [weak self] in
             await self?.loadInitialMap(for: windows)
             await self?.captureAllPreviews(for: windows)
+            await MainActor.run { self?.initialLoadTask = nil }
         }
     }
 
@@ -112,23 +113,36 @@ class WindowStreamClient {
     public func refresh(_ windows: [Window]) async throws {
         windowMap = try await getInitialMap(for: windows)
         prunePreviewCache(for: windows)
+        await captureAllPreviews(for: windows)
     }
+
+    private static let maxConcurrentCaptures = 4
 
     private func captureAllPreviews(for windows: [Window]) async {
         await withTaskGroup(of: Void.self) { group in
+            var inFlight = 0
             for window in windows {
                 if let key = window.previewIdentityKey, previewCache[key] != nil {
                     continue
                 }
                 guard let scWindow = windowMap[window] else { continue }
+                if inFlight >= Self.maxConcurrentCaptures {
+                    await group.next()
+                    inFlight -= 1
+                }
                 group.addTask {
                     do {
                         let image = try await WindowStreamClient.getImage(for: scWindow)
                         await MainActor.run { [weak self] in
                             self?.cache(image, for: window)
                         }
-                    } catch {}
+                    } catch is CancellationError {
+                        return
+                    } catch {
+                        print("error: capture preview: \(error)")
+                    }
                 }
+                inFlight += 1
             }
         }
     }
