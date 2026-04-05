@@ -46,7 +46,7 @@ enum SwitcherSearchResults {
         case (.application, .window):
             return false
         default:
-            return false
+            return lhs.1.sortLabel < rhs.1.sortLabel
         }
     }
 }

@@ -38,8 +38,8 @@ actor ApplicationIndex {
         }
 
         return await applications().compactMap { app in
-            let score = FuzzyCompare(query.lowercased(), app.name.lowercased())
-            guard score > 3 else {
+            let score = FuzzySearch.match(query, against: app.name).score
+            guard score > 0 else {
                 return nil
             }
 
