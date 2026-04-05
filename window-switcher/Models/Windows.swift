@@ -28,10 +28,21 @@ final class Windows {
        }
 
        var results: [(Int16, Window)] = []
+       let includeCombinedScore = FuzzySearch.hasMultipleTerms(query)
 
        for window in windows {
-           let score = FuzzyCompare(query.lowercased(), window.fqn().lowercased())
-           if score > 3 {
+           let titleMatch = FuzzySearch.match(query, against: window.name)
+           let appMatch = FuzzySearch.match(query, against: window.appName)
+           let combinedScore = includeCombinedScore
+               ? FuzzySearch.match(query, against: window.fqn()).score + 25
+               : 0
+           let score = max(
+               titleMatch.score + 80,
+               appMatch.score + 15,
+               combinedScore
+           )
+
+           if score > 0 {
                results.append((score, window))
            }
        }
