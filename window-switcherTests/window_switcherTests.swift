@@ -7,6 +7,79 @@ import Testing
 #endif
 
 struct window_switcherTests {
+    @Test func defaultConfigIncludesNavigationBindings() {
+        let config = ConfigLoader.load(from: Data(ConfigLoader.defaultConfigContents.utf8))
+
+        #expect(config.trigger == .default)
+        #expect(config.navigation == .default)
+    }
+
+    @Test func configAllowsRemappingNavigationBindings() {
+        let config = ConfigLoader.load(from: Data("""
+        [trigger]
+        key = "tab"
+        modifiers = ["option"]
+
+        [navigation.next]
+        key = "n"
+        modifiers = ["control", "shift"]
+
+        [navigation.previous]
+        key = "p"
+        modifiers = ["control"]
+        """.utf8))
+
+        #expect(config.navigation.next == [TriggerShortcut(key: .n, modifiers: [.control, .shift])])
+        #expect(config.navigation.previous == [TriggerShortcut(key: .p, modifiers: [.control])])
+    }
+
+    @Test func configAllowsMultipleNavigationBindingsPerAction() {
+        let config = ConfigLoader.load(from: Data("""
+        [navigation]
+        next = [
+          { key = "j", modifiers = ["control"] },
+          { key = "n", modifiers = ["control"] }
+        ]
+        previous = [
+          { key = "k", modifiers = ["control"] },
+          { key = "p", modifiers = ["control", "shift"] }
+        ]
+        """.utf8))
+
+        #expect(
+            config.navigation.next == [
+                TriggerShortcut(key: .j, modifiers: [.control]),
+                TriggerShortcut(key: .n, modifiers: [.control])
+            ]
+        )
+        #expect(
+            config.navigation.previous == [
+                TriggerShortcut(key: .k, modifiers: [.control]),
+                TriggerShortcut(key: .p, modifiers: [.control, .shift])
+            ]
+        )
+    }
+
+    @Test func invalidNavigationBindingDoesNotDropOtherValidConfig() {
+        let config = ConfigLoader.load(from: Data("""
+        [trigger]
+        key = "space"
+        modifiers = ["command"]
+
+        [navigation.next]
+        key = "bad-key"
+        modifiers = ["control"]
+
+        [navigation.previous]
+        key = "u"
+        modifiers = ["control"]
+        """.utf8))
+
+        #expect(config.trigger == TriggerShortcut(key: .space, modifiers: [.command]))
+        #expect(config.navigation.next == NavigationConfig.default.next)
+        #expect(config.navigation.previous == [TriggerShortcut(key: .u, modifiers: [.control])])
+    }
+
     @Test func blankQueryUsesRecentWindowOrder() {
         let first = makeWindow(pid: 101, appName: "Mail", title: "Inbox")
         let second = makeWindow(pid: 102, appName: "Notes", title: "Today")

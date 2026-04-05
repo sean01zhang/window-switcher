@@ -100,12 +100,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func showWindow() {
         // Make sure there is only one shown.
         self.closeWindow()
+        let config = ConfigStore.shared.config
         
         let cp = ContentPanel(
             closeWindow: { [weak self] in self?.closeWindow() },
             windowClient: windowClient,
             streamClient: streamClient,
-            triggerShortcut: ConfigStore.shared.config.trigger
+            triggerShortcut: config.trigger,
+            navigation: config.navigation
         )
         
         window = cp
