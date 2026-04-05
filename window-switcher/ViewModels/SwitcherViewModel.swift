@@ -71,12 +71,14 @@ extension SwitcherView {
 
                 guard let selectedItem else {
                     selectedItemPreview = nil
+                    selectedItemAppIcon = nil
                     return
                 }
 
                 switch selectedItem {
                 case .window(let w):
                     selectedItemPreview = streamClient.cachedWindowPreview(for: w)
+                    selectedItemAppIcon = icon(for: .window(w))
                     previewTask = Task { [weak self] in
                         guard let self else {
                             return
@@ -99,11 +101,13 @@ extension SwitcherView {
                     }
                 case .application:
                     selectedItemPreview = nil
+                    selectedItemAppIcon = icon(for: selectedItem)
                     previewTask = nil
                 }
             }
         }
         var selectedItemPreview: CGImage?
+        var selectedItemAppIcon: NSImage?
 
         // Icon caches keyed by PID (windows) and URL path (apps).
         // Valid for the lifetime of the ViewModel (one switcher session),

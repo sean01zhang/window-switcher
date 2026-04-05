@@ -9,31 +9,36 @@ import SwiftUI
 
 struct WindowImageView: View {
     @Binding var cgImage: CGImage?
+    @Binding var appImage: NSImage?
     
     var body: some View {
-        HStack {
-            VStack {
-                Group {
-                    if let image = selectedImage() {
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(alignment: .center)
-                    } else {
-                        RoundedRectangle(cornerRadius: 4).fill(Color.gray)
-                    }
-                }
-                .frame(alignment: .center)
+        ZStack(alignment: .bottomTrailing) {
+            if let image = selectedImage(), let appImage = appImage {
+                image
+                    .resizable()
+                    .scaledToFit()
+                Image(nsImage: appImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 70, height: 70)
+                    .offset(x: 5, y: 10)
+            } else if let appImage {
+                Image(nsImage: appImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+            } else {
+                RoundedRectangle(cornerRadius: 4).fill(Color.gray)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     func selectedImage() -> Image? {
         if let img = cgImage {
             let uiImage = NSImage(cgImage: img, size: .zero)
             return Image(nsImage: uiImage)
         }
-        
         return nil
     }
 }
