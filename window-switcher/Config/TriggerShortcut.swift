@@ -42,7 +42,7 @@ struct TriggerShortcut: Equatable {
 }
 
 extension TriggerShortcut {
-    init?(raw: RawTriggerConfig) {
+    init?(raw: RawShortcutConfig) {
         guard
             let rawKey = raw.key?.trimmingCharacters(in: .whitespacesAndNewlines),
             !rawKey.isEmpty,

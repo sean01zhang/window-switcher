@@ -24,6 +24,16 @@ struct ConfigLoader {
     [trigger]
     key = "tab"
     modifiers = ["option"]
+
+    [navigation]
+    next = [
+      { key = "j", modifiers = ["control"] },
+      { key = "n", modifiers = ["control"] }
+    ]
+    previous = [
+      { key = "k", modifiers = ["control"] },
+      { key = "p", modifiers = ["control"] }
+    ]
     """
 
     static func load(from fileURL: URL = defaultConfigURL) -> AppConfig {
@@ -51,16 +61,55 @@ struct ConfigLoader {
     }
 
     static func resolve(_ rawConfig: RawAppConfig) -> AppConfig {
-        guard let rawTrigger = rawConfig.trigger else {
-            return .default
+        var config = AppConfig.default
+
+        if let rawTrigger = rawConfig.trigger {
+            if let trigger = TriggerShortcut(raw: rawTrigger) {
+                config.trigger = trigger
+            } else {
+                print("warning: invalid trigger config, falling back to default")
+            }
         }
 
-        guard let trigger = TriggerShortcut(raw: rawTrigger) else {
-            print("warning: invalid trigger config, falling back to default")
-            return .default
+        if let rawNavigation = rawConfig.navigation {
+            if let rawNext = rawNavigation.next {
+                if let next = resolveShortcutList(rawNext.shortcuts, warningLabel: "navigation.next") {
+                    config.navigation.next = next
+                } else {
+                    print("warning: invalid navigation.next config, falling back to default")
+                }
+            }
+
+            if let rawPrevious = rawNavigation.previous {
+                if let previous = resolveShortcutList(rawPrevious.shortcuts, warningLabel: "navigation.previous") {
+                    config.navigation.previous = previous
+                } else {
+                    print("warning: invalid navigation.previous config, falling back to default")
+                }
+            }
         }
 
-        return AppConfig(trigger: trigger)
+        return config
+    }
+
+    private static func resolveShortcutList(
+        _ rawShortcuts: [RawShortcutConfig],
+        warningLabel: String
+    ) -> [TriggerShortcut]? {
+        guard !rawShortcuts.isEmpty else {
+            print("warning: \(warningLabel) config must include at least one shortcut")
+            return nil
+        }
+
+        var shortcuts: [TriggerShortcut] = []
+        for rawShortcut in rawShortcuts {
+            guard let shortcut = TriggerShortcut(raw: rawShortcut) else {
+                return nil
+            }
+            shortcuts.append(shortcut)
+        }
+
+        return shortcuts
     }
 
     @discardableResult

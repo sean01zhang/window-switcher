@@ -10,6 +10,7 @@ struct SwitcherView: View {
     let windowClient: WindowClient
     let streamClient: WindowStreamClient
     let triggerShortcut: TriggerShortcut
+    let navigation: NavigationConfig
     @State private var viewModel: ViewModel
     @State private var isQuickSwitch: Bool = true
     @State private var selectOnRelease: Bool = false
@@ -20,12 +21,14 @@ struct SwitcherView: View {
         closeWindow: @escaping () -> Void,
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
-        triggerShortcut: TriggerShortcut
+        triggerShortcut: TriggerShortcut,
+        navigation: NavigationConfig
     ) {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
         self.triggerShortcut = triggerShortcut
+        self.navigation = navigation
         _viewModel = State(initialValue: ViewModel(windowClient: windowClient, streamClient: streamClient))
     }
     
@@ -134,19 +137,20 @@ struct SwitcherView: View {
             closeWindow()
             return .handled
         }
-        
-        // If a key press is handled and we haven't let go of hotkey,
-        // then we will enter item on release of hotkey.
-        if isQuickSwitch {
-            selectOnRelease = true
+
+        let didHandleNavigation = handleConfiguredNavigationKeyPress(key)
+            || handleBuiltInNavigationKeyPress(key)
+
+        if didHandleNavigation {
+            // If a key press is handled and we haven't let go of hotkey,
+            // then we will enter item on release of hotkey.
+            if isQuickSwitch {
+                selectOnRelease = true
+            }
+            return .handled
         }
-        
 
         switch key.key {
-        case .upArrow:
-            viewModel.selectPrev()
-        case .downArrow:
-            viewModel.selectNext()
         case .escape:
             if !viewModel.searchText.isEmpty {
                 viewModel.searchText = ""
@@ -167,6 +171,49 @@ struct SwitcherView: View {
         }
 
         return .handled
+    }
+
+    private func handleConfiguredNavigationKeyPress(_ key: KeyPress) -> Bool {
+        if matchesAnyShortcut(navigation.previous, keyPress: key) {
+            viewModel.selectPrev()
+            return true
+        }
+
+        if matchesAnyShortcut(navigation.next, keyPress: key) {
+            viewModel.selectNext()
+            return true
+        }
+
+        return false
+    }
+
+    private func matchesAnyShortcut(_ shortcuts: [TriggerShortcut], keyPress: KeyPress) -> Bool {
+        shortcuts.contains {
+            $0.matches(
+                key: keyPress.key,
+                characters: keyPress.characters,
+                modifiers: keyPress.modifiers
+            )
+        }
+    }
+
+    private func handleBuiltInNavigationKeyPress(_ key: KeyPress) -> Bool {
+        switch key.key {
+        case .upArrow:
+            viewModel.selectPrev()
+            return true
+        case .downArrow:
+            viewModel.selectNext()
+            return true
+        case .tab:
+            if !key.modifiers.contains(.option) || isQuickSwitch {
+                viewModel.selectNext()
+                return true
+            }
+            return false
+        default:
+            return false
+        }
     }
 
     private func installModifierMonitors() {

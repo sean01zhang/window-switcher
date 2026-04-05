@@ -25,6 +25,16 @@ Full configuration docs live in [docs/configuration.md](docs/configuration.md).
 [trigger]
 key = "tab"
 modifiers = ["option"]
+
+[navigation]
+next = [
+  { key = "j", modifiers = ["control"] },
+  { key = "n", modifiers = ["control"] }
+]
+previous = [
+  { key = "k", modifiers = ["control"] },
+  { key = "p", modifiers = ["control"] }
+]
 ```
 
 Supported trigger modifiers are `command`, `option`, `control`, and `shift`. If the file is missing or invalid, Window Switcher falls back to the default `Option+Tab` trigger.
