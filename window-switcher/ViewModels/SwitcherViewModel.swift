@@ -120,9 +120,8 @@ extension SwitcherView {
             self.streamClient = streamClient
             // Seed initial results
             search()
-            // Prefetch all window previews so they're cached before the user tabs to them.
-            let windows = windowClient.getWindows()
-            streamClient.prefetchPreviews(for: windows)
+            // Refresh the window map and prefetch all previews so they're cached before the user tabs.
+            streamClient.refreshAndPrefetch(for: windowClient.getWindows())
         }
 
         // Handlers
