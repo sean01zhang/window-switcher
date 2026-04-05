@@ -65,9 +65,13 @@ class WindowStreamClient {
     private var previewCache: [WindowIdentityKey: CGImage] = [:]
     private var initialLoadTask: Task<Void, Never>?
     
+    // Asynchronously builds the window map and prefetches all previews.
+    // Not guaranteed to complete before user interaction; getWindowPreview
+    // awaits this task and falls back to on-demand capture if needed.
     init(_ windows: [Window]) {
         initialLoadTask = Task { [weak self] in
             await self?.loadInitialMap(for: windows)
+            await self?.captureAllPreviews(for: windows)
         }
     }
 
@@ -108,14 +112,6 @@ class WindowStreamClient {
     public func refresh(_ windows: [Window]) async throws {
         windowMap = try await getInitialMap(for: windows)
         prunePreviewCache(for: windows)
-    }
-
-    public func refreshAndPrefetch(for windows: [Window]) {
-        initialLoadTask?.cancel()
-        initialLoadTask = Task { [weak self] in
-            try? await self?.refresh(windows)
-            await self?.captureAllPreviews(for: windows)
-        }
     }
 
     private func captureAllPreviews(for windows: [Window]) async {
