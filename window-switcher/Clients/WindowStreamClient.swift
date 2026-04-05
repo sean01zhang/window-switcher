@@ -76,10 +76,6 @@ class WindowStreamClient {
     }
 
     private func loadInitialMap(for windows: [Window]) async {
-        defer {
-            initialLoadTask = nil
-        }
-
         do {
             windowMap = try await getInitialMap(for: windows)
             prunePreviewCache(for: windows)
@@ -90,7 +86,7 @@ class WindowStreamClient {
         }
     }
     
-    private static func getImage(for window: SCWindow) async throws -> CGImage {
+    private nonisolated static func getImage(for window: SCWindow) async throws -> CGImage {
         let streamConfig = SCStreamConfiguration()
         
         // Set output resolution to a small size
@@ -110,7 +106,6 @@ class WindowStreamClient {
     }
 
     public func refresh(_ windows: [Window]) async throws {
-        initialLoadTask = nil
         windowMap = try await getInitialMap(for: windows)
         prunePreviewCache(for: windows)
     }
