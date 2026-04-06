@@ -42,7 +42,7 @@ final class PermissionManager {
         self.client = client
         self.onboardingStore = onboardingStore
         refreshAll()
-        if !hasCompletedOnboarding && requiredPermissionsGranted {
+        if !hasCompletedOnboarding && allGranted {
             hasCompletedOnboarding = true
         }
     }

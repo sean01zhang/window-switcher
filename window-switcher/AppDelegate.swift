@@ -65,26 +65,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         applyConfiguredHotKey()
     }
 
-    func handleTrigger() {
+    @discardableResult
+    func handleTrigger() -> Bool {
         reloadConfigForOpen()
-        guard ensureAccessibility() else { return }
+        guard ensureAccessibility() else { return false }
         showWindow()
+        return true
     }
 
     private func handleHotKeyTrigger() {
-        handleTrigger()
-
-        if window == nil {
-            applyConfiguredHotKey()
-        } else {
+        if handleTrigger() {
             hotKey = nil
         }
     }
 
     func openSwitcherFromMenu() {
-        reloadConfigForOpen()
-        guard ensureAccessibility() else { return }
-        showWindow()
+        _ = handleTrigger()
     }
 
     private func ensureAccessibility() -> Bool {
@@ -179,6 +175,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        hotKey = nil
         let window = OnboardingWindow(permissionManager: permissionManager, onDismiss: { [weak self] in
             self?.dismissOnboarding()
         })
@@ -189,6 +186,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func dismissOnboarding() {
         onboardingWindow = nil
+        if window == nil {
+            applyConfiguredHotKey()
+        }
     }
 
     private func presentErrorAlert(title: String, message: String) {

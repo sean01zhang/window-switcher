@@ -39,7 +39,12 @@ class OnboardingWindow: NSWindow, NSWindowDelegate {
             try task.run()
             NSApp.terminate(nil)
         } catch {
-            // Keep the current app running if relaunch fails.
+            let alert = NSAlert()
+            alert.messageText = "Unable to Relaunch"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
 }

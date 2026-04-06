@@ -16,8 +16,8 @@ let versionIdentifier = Bundle.main.infoDictionary?["CFBundleShortVersionString"
 @main
 struct window_switcherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @State private var launchAtLoginManager = LaunchAtLoginManager.shared
-    @State private var permissionManager = PermissionManager.shared
+    private let launchAtLoginManager = LaunchAtLoginManager.shared
+    private let permissionManager = PermissionManager.shared
 
     var body: some Scene {
         MenuBarExtra("Windows", systemImage: "macwindow") {
