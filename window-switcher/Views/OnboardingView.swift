@@ -51,11 +51,8 @@ struct OnboardingView: View {
         }
         .padding(32)
         .frame(width: 480, height: 360)
-        .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
-            guard !permissionManager.allGranted else { return }
-            let wasDenied = permissionManager.screenRecordingStatus != .granted
-            permissionManager.refreshAll()
-            if wasDenied && permissionManager.screenRecordingStatus == .granted {
+        .onChange(of: permissionManager.screenRecordingStatus) { oldStatus, newStatus in
+            if oldStatus != .granted && newStatus == .granted {
                 screenRecordingWasGranted = true
             }
         }

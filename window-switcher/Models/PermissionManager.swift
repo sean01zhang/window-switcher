@@ -4,7 +4,6 @@ import Observation
 enum PermissionStatus: Equatable {
     case granted
     case denied
-    case unknown
 }
 
 @MainActor
@@ -15,8 +14,8 @@ final class PermissionManager {
     private let client: any PermissionClient
     private let onboardingStore: any OnboardingStore
 
-    private(set) var accessibilityStatus: PermissionStatus = .unknown
-    private(set) var screenRecordingStatus: PermissionStatus = .unknown
+    private(set) var accessibilityStatus: PermissionStatus
+    private(set) var screenRecordingStatus: PermissionStatus
 
     var allGranted: Bool {
         accessibilityStatus == .granted && screenRecordingStatus == .granted
@@ -32,7 +31,7 @@ final class PermissionManager {
     }
 
     var shouldShowOnboarding: Bool {
-        !hasCompletedOnboarding
+        !hasCompletedOnboarding && !allGranted
     }
 
     init(
@@ -41,10 +40,8 @@ final class PermissionManager {
     ) {
         self.client = client
         self.onboardingStore = onboardingStore
-        refreshAll()
-        if !hasCompletedOnboarding && allGranted {
-            hasCompletedOnboarding = true
-        }
+        self.accessibilityStatus = client.accessibilityStatus()
+        self.screenRecordingStatus = client.screenRecordingStatus()
     }
 
     // MARK: - Accessibility
