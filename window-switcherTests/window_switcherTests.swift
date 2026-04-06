@@ -11,8 +11,20 @@ struct window_switcherTests {
         let config = ConfigLoader.load(from: Data(ConfigLoader.defaultConfigContents.utf8))
 
         #expect(config.trigger == .default)
+        #expect(config.quickSwitch == .default)
         #expect(config.navigation == .default)
         #expect(config.resultListItem == .default)
+    }
+
+    @Test func configAllowsDisablingQuickSwitch() {
+        let config = ConfigLoader.load(from: Data("""
+        [quick_switch]
+        enabled = true
+        """.utf8))
+
+        #expect(config.quickSwitch == QuickSwitchConfig(enabled: true))
+        #expect(config.trigger == .default)
+        #expect(config.navigation == .default)
     }
 
     @Test func configAllowsRemappingNavigationBindings() {

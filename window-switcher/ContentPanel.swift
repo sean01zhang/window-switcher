@@ -6,6 +6,7 @@ class ContentPanel: NSPanel {
     private let windowClient: WindowClient
     private let streamClient: WindowStreamClient
     private let triggerShortcut: TriggerShortcut
+    private let quickSwitch: QuickSwitchConfig
     private let navigation: NavigationConfig
     private let resultListItem: ResultListItemConfig
 
@@ -14,6 +15,7 @@ class ContentPanel: NSPanel {
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
         triggerShortcut: TriggerShortcut,
+        quickSwitch: QuickSwitchConfig,
         navigation: NavigationConfig,
         resultListItem: ResultListItemConfig
     ) {
@@ -21,6 +23,7 @@ class ContentPanel: NSPanel {
         self.windowClient = windowClient
         self.streamClient = streamClient
         self.triggerShortcut = triggerShortcut
+        self.quickSwitch = quickSwitch
         self.navigation = navigation
         self.resultListItem = resultListItem
         super.init(
@@ -54,6 +57,7 @@ class ContentPanel: NSPanel {
             windowClient: windowClient,
             streamClient: streamClient,
             triggerShortcut: triggerShortcut,
+            quickSwitchEnabled: quickSwitch.enabled,
             navigation: navigation,
             resultListItem: resultListItem
         )

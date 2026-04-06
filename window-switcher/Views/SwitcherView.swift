@@ -10,6 +10,7 @@ struct SwitcherView: View {
     let windowClient: WindowClient
     let streamClient: WindowStreamClient
     let triggerShortcut: TriggerShortcut
+    let quickSwitchEnabled: Bool
     let navigation: NavigationConfig
     let resultListItem: ResultListItemConfig
     @State private var viewModel: ViewModel
@@ -23,6 +24,7 @@ struct SwitcherView: View {
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
         triggerShortcut: TriggerShortcut,
+        quickSwitchEnabled: Bool,
         navigation: NavigationConfig,
         resultListItem: ResultListItemConfig
     ) {
@@ -30,6 +32,7 @@ struct SwitcherView: View {
         self.windowClient = windowClient
         self.streamClient = streamClient
         self.triggerShortcut = triggerShortcut
+        self.quickSwitchEnabled = quickSwitchEnabled
         self.navigation = navigation
         self.resultListItem = resultListItem
         _viewModel = State(initialValue: ViewModel(windowClient: windowClient, streamClient: streamClient))
@@ -236,7 +239,12 @@ struct SwitcherView: View {
     }
 
     private func installModifierMonitors() {
-        isQuickSwitch = areQuickSwitchModifiersPressed(NSEvent.modifierFlags)
+        selectOnRelease = false
+        isQuickSwitch = isQuickSwitchActive(for: NSEvent.modifierFlags)
+
+        guard quickSwitchEnabled else {
+            return
+        }
 
         if localModifierMonitor == nil {
             localModifierMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
@@ -265,7 +273,11 @@ struct SwitcherView: View {
     }
 
     private func handleModifierFlagsChanged(_ flags: NSEvent.ModifierFlags) {
-        if !areQuickSwitchModifiersPressed(flags) {
+        guard quickSwitchEnabled else {
+            return
+        }
+
+        if !isQuickSwitchActive(for: flags) {
             if selectOnRelease {
                 if let item = viewModel.selectedItem {
                     viewModel.enterItem(item)
@@ -277,7 +289,11 @@ struct SwitcherView: View {
         }
     }
 
-    private func areQuickSwitchModifiersPressed(_ flags: NSEvent.ModifierFlags) -> Bool {
-        flags.isSuperset(of: triggerShortcut.modifiers)
+    private func isQuickSwitchActive(for flags: NSEvent.ModifierFlags) -> Bool {
+        guard quickSwitchEnabled else {
+            return false
+        }
+
+        return flags.isSuperset(of: triggerShortcut.modifiers)
     }
 }

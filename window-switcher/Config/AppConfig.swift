@@ -2,11 +2,13 @@ import Foundation
 
 struct AppConfig: Equatable {
     var trigger: TriggerShortcut
+    var quickSwitch: QuickSwitchConfig
     var navigation: NavigationConfig
     var resultListItem: ResultListItemConfig
 
     static let `default` = AppConfig(
         trigger: .default,
+        quickSwitch: .default,
         navigation: .default,
         resultListItem: .default
     )
@@ -14,11 +16,13 @@ struct AppConfig: Equatable {
 
 struct RawAppConfig: Decodable {
     var trigger: RawShortcutConfig?
+    var quickSwitch: RawQuickSwitchConfig?
     var navigation: RawNavigationConfig?
     var resultListItem: RawResultListItemConfig?
 
     enum CodingKeys: String, CodingKey {
         case trigger
+        case quickSwitch = "quick_switch"
         case navigation
         case resultListItem = "result"
     }
@@ -27,6 +31,16 @@ struct RawAppConfig: Decodable {
 struct RawShortcutConfig: Decodable {
     var key: String?
     var modifiers: [String]?
+}
+
+struct QuickSwitchConfig: Equatable {
+    var enabled: Bool
+
+    static let `default` = QuickSwitchConfig(enabled: false)
+}
+
+struct RawQuickSwitchConfig: Decodable {
+    var enabled: Bool?
 }
 
 struct NavigationConfig: Equatable {

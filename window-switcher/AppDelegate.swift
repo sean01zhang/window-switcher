@@ -107,6 +107,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             windowClient: windowClient,
             streamClient: streamClient,
             triggerShortcut: config.trigger,
+            quickSwitch: config.quickSwitch,
             navigation: config.navigation,
             resultListItem: config.resultListItem
         )

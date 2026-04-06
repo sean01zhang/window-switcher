@@ -25,6 +25,9 @@ struct ConfigLoader {
     key = "tab"
     modifiers = ["option"]
 
+    [quick_switch]
+    enabled = false
+
     [navigation]
     next = [
       { key = "j", modifiers = ["control"] },
@@ -78,6 +81,10 @@ struct ConfigLoader {
             } else {
                 print("warning: invalid trigger config, falling back to default")
             }
+        }
+
+        if let quickSwitchEnabled = rawConfig.quickSwitch?.enabled {
+            config.quickSwitch.enabled = quickSwitchEnabled
         }
 
         if let rawNavigation = rawConfig.navigation {
