@@ -12,6 +12,9 @@ To see changes after making changes to the config, go to the menubar widget and 
 key = "tab"
 modifiers = ["option"]
 
+[quick_switch]
+enabled = false
+
 [navigation]
 next = [
   { key = "j", modifiers = ["control"] },
@@ -38,6 +41,7 @@ template = "Open {name}"
 | --- | --- | --- | --- | --- |
 | `trigger` | `key` | `string` | `"tab"` | The key used to open the switcher. |
 | `trigger` | `modifiers` | `array<string>` | `["option"]` | Modifier keys pressed with `trigger.key`. |
+| `quick_switch` | `enabled` | `boolean` | `false` | When `true`, releasing the trigger modifiers enters the current selection. When `false`, selection only happens on explicit confirm. |
 | `navigation` | `next` | `array<table>` | `[{ key = "j", modifiers = ["control"] }, { key = "n", modifiers = ["control"] }]` | One or more shortcuts that move to the next result. |
 | `navigation` | `previous` | `array<table>` | `[{ key = "k", modifiers = ["control"] }, { key = "p", modifiers = ["control"] }]` | One or more shortcuts that move to the previous result. |
 | `navigation` | `enter_selection` | `array<table>` | `[{ key = "y", modifiers = ["control"] }]` | One or more shortcuts that enter the currently selected result. |
@@ -46,6 +50,13 @@ template = "Open {name}"
 
 The default navigation bindings add `Control+J` and `Control+N` for next, plus `Control+K` and `Control+P` for previous. Arrow keys still work, and `Tab`
 still advances to the next result. `Return` still enters the selected result, and `Control+Y` is configured as an additional default binding.
+
+To enable quick-switch so releasing the trigger modifiers enters the current selection:
+
+```toml
+[quick_switch]
+enabled = true
+```
 
 You can bind multiple shortcuts to the same action:
 
