@@ -16,8 +16,9 @@ let versionIdentifier = Bundle.main.infoDictionary?["CFBundleShortVersionString"
 @main
 struct window_switcherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @State private var launchAtLoginManager = LaunchAtLoginManager.shared
-    
+    private let launchAtLoginManager = LaunchAtLoginManager.shared
+    private let permissionManager = PermissionManager.shared
+
     var body: some Scene {
         MenuBarExtra("Windows", systemImage: "macwindow") {
             let configStore = ConfigStore.shared
@@ -29,7 +30,38 @@ struct window_switcherApp: App {
                     }
                     NSWorkspace.shared.open(url)
                 }
+                if !permissionManager.allGranted {
+                    Divider()
+                    if !permissionManager.requiredPermissionsGranted {
+                        Label {
+                            Text("Accessibility Required")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                        }
+                        .foregroundStyle(.yellow)
+                    } else if permissionManager.screenRecordingStatus != .granted {
+                        Label {
+                            Text("Previews Optional")
+                        } icon: {
+                            Image(systemName: "photo.on.rectangle.angled")
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                    if permissionManager.accessibilityStatus != .granted {
+                        Button("Grant Accessibility Access...") {
+                            permissionManager.openAccessibilitySettings()
+                        }
+                    }
+                    if permissionManager.screenRecordingStatus != .granted {
+                        Button("Grant Screen Recording Access...") {
+                            permissionManager.openScreenRecordingSettings()
+                        }
+                    }
+                }
                 Divider()
+                Button("Setup Wizard...") {
+                    appDelegate.showOnboarding()
+                }
                 if let shortcut = configStore.config.trigger.menuShortcut {
                     Button("Open Switcher") {
                         appDelegate.openSwitcherFromMenu()
@@ -61,7 +93,11 @@ struct window_switcherApp: App {
                 Button("Quit", role: .destructive) {
                     NSApplication.shared.terminate(nil)
                 }.keyboardShortcut("q")
-            }.frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity)
+            .onAppear {
+                permissionManager.refreshAll()
+            }
         }
     }
 }

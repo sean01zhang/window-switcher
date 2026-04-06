@@ -9,25 +9,42 @@ import AppKit
 import HotKey
 
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     var window : NSWindow?
     var hotKey : HotKey?
+    var onboardingWindow: OnboardingWindow?
     let launchAtLoginManager = LaunchAtLoginManager.shared
-    
+    let permissionManager = PermissionManager.shared
+
     // Long-lived clients to preserve caches across panels
     let windowClient = WindowClient()
     lazy var streamClient = WindowStreamClient(windowClient.getWindows())
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        
-        ensureAccessibilityPermission()
+
+        permissionManager.refreshAll()
         ConfigStore.shared.reload()
         launchAtLoginManager.refreshStatus()
         Task {
             await ApplicationIndex.shared.preload()
         }
         applyConfiguredHotKey()
+
+        DispatchQueue.main.async { [weak self] in
+            self?.showOnboardingIfNeeded()
+        }
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        let previousAccessibility = permissionManager.accessibilityStatus
+        permissionManager.refreshAll()
+
+        showOnboardingIfNeeded()
+
+        if previousAccessibility != .granted && permissionManager.accessibilityStatus == .granted {
+            refreshWindows()
+        }
     }
     
     private func applyConfiguredHotKey() {
@@ -40,8 +57,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotKey = HotKey(keyCombo: keyCombo)
         hotKey?.keyDownHandler = { [weak self] in
             DispatchQueue.main.async {
-                self?.handleTrigger()
-                self?.hotKey = nil
+                self?.handleHotKeyTrigger()
             }
         }
     }
@@ -51,14 +67,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         applyConfiguredHotKey()
     }
 
-    func handleTrigger() {
+    @discardableResult
+    func handleTrigger() -> Bool {
         reloadConfigForOpen()
+        guard ensureAccessibility() else { return false }
         showWindow()
+        return true
+    }
+
+    private func handleHotKeyTrigger() {
+        if handleTrigger() {
+            hotKey = nil
+        }
     }
 
     func openSwitcherFromMenu() {
-        reloadConfigForOpen()
-        showWindow()
+        _ = handleTrigger()
+    }
+
+    private func ensureAccessibility() -> Bool {
+        permissionManager.refreshAccessibility()
+        guard permissionManager.requiredPermissionsGranted else {
+            showOnboarding()
+            return false
+        }
+        return true
     }
 
     func openConfigFileFromMenu() {
@@ -137,20 +170,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func ensureAccessibilityPermission() {
-        if !A11yClient.ensurePrompt() {
-            let alert = NSAlert()
-            alert.messageText = "Accessibility Permission Required"
-            alert.informativeText = "Window Switcher needs accessibility access to display open windows."
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "Open Settings")
-            alert.addButton(withTitle: "Quit")
-            let response = alert.runModal()
-            if response == .alertFirstButtonReturn {
-                A11yClient.openSystemSettings()
-            }
-            NSApp.terminate(nil)
+    func showOnboarding() {
+        guard onboardingWindow == nil else {
+            onboardingWindow?.present()
+            return
         }
+
+        hotKey = nil
+        let window = OnboardingWindow(permissionManager: permissionManager, onDismiss: { [weak self] in
+            self?.dismissOnboarding()
+        })
+        onboardingWindow = window
+        window.present()
+    }
+
+    private func dismissOnboarding() {
+        onboardingWindow = nil
+        if window == nil {
+            applyConfiguredHotKey()
+        }
+    }
+
+    private func showOnboardingIfNeeded() {
+        guard permissionManager.shouldShowOnboarding else { return }
+        showOnboarding()
     }
 
     private func presentErrorAlert(title: String, message: String) {
