@@ -117,7 +117,6 @@ struct OnboardingView: View {
 
     private var continueButton: some View {
         Button {
-            permissionManager.completeOnboarding()
             onDismiss()
         } label: {
             Text("Continue")

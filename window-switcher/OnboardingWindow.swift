@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-class OnboardingWindow: NSWindow, NSWindowDelegate {
+final class OnboardingWindow: NSWindow, NSWindowDelegate {
     private let onDismissCallback: () -> Void
 
     init(permissionManager: PermissionManager, onDismiss: @escaping () -> Void) {
@@ -29,6 +29,12 @@ class OnboardingWindow: NSWindow, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         onDismissCallback()
+    }
+
+    func present() {
+        makeKeyAndOrderFront(nil)
+        orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func relaunchApplication() {

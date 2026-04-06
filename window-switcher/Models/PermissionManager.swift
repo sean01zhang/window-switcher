@@ -12,7 +12,6 @@ final class PermissionManager {
     static let shared = PermissionManager()
 
     private let client: any PermissionClient
-    private let onboardingStore: any OnboardingStore
 
     private(set) var accessibilityStatus: PermissionStatus
     private(set) var screenRecordingStatus: PermissionStatus
@@ -25,21 +24,12 @@ final class PermissionManager {
         accessibilityStatus == .granted
     }
 
-    var hasCompletedOnboarding: Bool {
-        get { onboardingStore.hasCompletedOnboarding }
-        set { onboardingStore.hasCompletedOnboarding = newValue }
-    }
-
     var shouldShowOnboarding: Bool {
-        !hasCompletedOnboarding && !allGranted
+        accessibilityStatus != .granted
     }
 
-    init(
-        client: any PermissionClient = SystemPermissionClient(),
-        onboardingStore: any OnboardingStore = UserDefaultsOnboardingStore()
-    ) {
+    init(client: any PermissionClient = SystemPermissionClient()) {
         self.client = client
-        self.onboardingStore = onboardingStore
         self.accessibilityStatus = client.accessibilityStatus()
         self.screenRecordingStatus = client.screenRecordingStatus()
     }
@@ -85,9 +75,5 @@ final class PermissionManager {
     func refreshAll() {
         refreshAccessibility()
         refreshScreenRecording()
-    }
-
-    func completeOnboarding() {
-        hasCompletedOnboarding = true
     }
 }

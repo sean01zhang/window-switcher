@@ -9,7 +9,7 @@ import AppKit
 import HotKey
 
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     var window : NSWindow?
     var hotKey : HotKey?
     var onboardingWindow: OnboardingWindow?
@@ -31,14 +31,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         applyConfiguredHotKey()
 
-        if permissionManager.shouldShowOnboarding {
-            showOnboarding()
+        DispatchQueue.main.async { [weak self] in
+            self?.showOnboardingIfNeeded()
         }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
         let previousAccessibility = permissionManager.accessibilityStatus
         permissionManager.refreshAll()
+
+        showOnboardingIfNeeded()
 
         if previousAccessibility != .granted && permissionManager.accessibilityStatus == .granted {
             refreshWindows()
@@ -170,8 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showOnboarding() {
         guard onboardingWindow == nil else {
-            onboardingWindow?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            onboardingWindow?.present()
             return
         }
 
@@ -180,8 +181,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.dismissOnboarding()
         })
         onboardingWindow = window
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        window.present()
     }
 
     private func dismissOnboarding() {
@@ -189,6 +189,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if window == nil {
             applyConfiguredHotKey()
         }
+    }
+
+    private func showOnboardingIfNeeded() {
+        guard permissionManager.shouldShowOnboarding else { return }
+        showOnboarding()
     }
 
     private func presentErrorAlert(title: String, message: String) {
