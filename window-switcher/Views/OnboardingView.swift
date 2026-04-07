@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    let permissionManager: PermissionManager
+    let permissionStore: PermissionStore
     let onDismiss: () -> Void
     let onRelaunch: () -> Void
 
@@ -16,19 +16,19 @@ struct OnboardingView: View {
                 permissionRow(
                     title: "Accessibility",
                     description: "Required to list and switch between open windows.",
-                    status: permissionManager.accessibilityStatus,
+                    status: permissionStore.accessibilityStatus,
                     pendingStatusText: "Required",
                     pendingStatusColor: .red,
-                    onRequest: { permissionManager.requestAccessibility() }
+                    onRequest: { permissionStore.requestAccessibility() }
                 )
 
                 permissionRow(
                     title: "Screen Recording",
                     description: "Optional for window preview thumbnails.",
-                    status: permissionManager.screenRecordingStatus,
+                    status: permissionStore.screenRecordingStatus,
                     pendingStatusText: "Optional",
                     pendingStatusColor: .secondary,
-                    onRequest: { permissionManager.requestScreenRecording() }
+                    onRequest: { permissionStore.requestScreenRecording() }
                 )
             }
 
@@ -51,7 +51,7 @@ struct OnboardingView: View {
         }
         .padding(32)
         .frame(width: 480, height: 360)
-        .onChange(of: permissionManager.screenRecordingStatus) { oldStatus, newStatus in
+        .onChange(of: permissionStore.screenRecordingStatus) { oldStatus, newStatus in
             if oldStatus != .granted && newStatus == .granted {
                 screenRecordingWasGranted = true
             }
@@ -124,6 +124,6 @@ struct OnboardingView: View {
         }
         .controlSize(.large)
         .keyboardShortcut(.defaultAction)
-        .disabled(!permissionManager.requiredPermissionsGranted)
+        .disabled(!permissionStore.requiredPermissionsGranted)
     }
 }

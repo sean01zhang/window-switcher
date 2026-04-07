@@ -9,20 +9,21 @@ struct SwitcherView: View {
     let closeWindow: () -> Void
     let windowClient: WindowClient
     let streamClient: WindowStreamClient
+    let applicationIndexStore: ApplicationIndexStore
+    let workspaceClient: any WorkspaceClient
     let triggerShortcut: TriggerShortcut
     let quickSwitchEnabled: Bool
     let navigation: NavigationConfig
     let resultListItem: ResultListItemConfig
     @State private var viewModel: ViewModel
-    @State private var isQuickSwitch: Bool = true
-    @State private var selectOnRelease: Bool = false
-    @State private var localModifierMonitor: Any?
-    @State private var globalModifierMonitor: Any?
+    @State private var interactionController: InteractionController
 
     init(
         closeWindow: @escaping () -> Void,
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
+        applicationIndexStore: ApplicationIndexStore,
+        workspaceClient: any WorkspaceClient,
         triggerShortcut: TriggerShortcut,
         quickSwitchEnabled: Bool,
         navigation: NavigationConfig,
@@ -31,11 +32,22 @@ struct SwitcherView: View {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
+        self.applicationIndexStore = applicationIndexStore
+        self.workspaceClient = workspaceClient
         self.triggerShortcut = triggerShortcut
         self.quickSwitchEnabled = quickSwitchEnabled
         self.navigation = navigation
         self.resultListItem = resultListItem
-        _viewModel = State(initialValue: ViewModel(windowClient: windowClient, streamClient: streamClient))
+        _viewModel = State(initialValue: ViewModel(
+            windowClient: windowClient,
+            streamClient: streamClient,
+            applicationIndexStore: applicationIndexStore,
+            workspaceClient: workspaceClient
+        ))
+        _interactionController = State(initialValue: InteractionController(
+            triggerShortcut: triggerShortcut,
+            quickSwitchEnabled: quickSwitchEnabled
+        ))
     }
     
     var body: some View {
@@ -53,9 +65,27 @@ struct SwitcherView: View {
         .overlay(alignment: .bottom) {
             searchBarOverlay
         }
-        .onAppear(perform: installModifierMonitors)
-        .onDisappear(perform: removeModifierMonitors)
-        .onKeyPress(action: handleKeyPress)
+        .onAppear {
+            interactionController.installModifierMonitors(
+                onModifierFlagsChanged: handleModifierFlagsChanged
+            )
+        }
+        .onDisappear {
+            interactionController.removeModifierMonitors()
+        }
+        .onKeyPress { key in
+            interactionController.handleKeyPress(
+                key,
+                selectedItem: viewModel.selectedItem,
+                searchText: viewModel.searchText,
+                onCloseWindow: closeWindow,
+                onClearSearch: { viewModel.searchText = "" },
+                onSelectPrevious: viewModel.selectPrev,
+                onSelectNext: viewModel.selectNext,
+                onEnterSelectedItem: enterSelectedItem,
+                onHandleConfiguredNavigation: handleConfiguredNavigationKeyPress
+            )
+        }
     }
 
     private var contentView: some View {
@@ -139,48 +169,6 @@ struct SwitcherView: View {
         }
     }
 
-    private func handleKeyPress(_ key: KeyPress) -> KeyPress.Result {
-        if triggerShortcut.matches(
-            key: key.key,
-            characters: key.characters,
-            modifiers: key.modifiers
-        ) && !isQuickSwitch {
-            closeWindow()
-            return .handled
-        }
-
-        let didHandleNavigation = handleConfiguredNavigationKeyPress(key)
-            || handleBuiltInNavigationKeyPress(key)
-
-        if didHandleNavigation {
-            // If a key press is handled and we haven't let go of hotkey,
-            // then we will enter item on release of hotkey.
-            if isQuickSwitch {
-                selectOnRelease = true
-            }
-            return .handled
-        }
-
-        switch key.key {
-        case .escape:
-            if !viewModel.searchText.isEmpty {
-                viewModel.searchText = ""
-            } else {
-                closeWindow()
-            }
-        case .return:
-            enterSelectedItem()
-        case .tab:
-            if !key.modifiers.contains(.option) || isQuickSwitch {
-                viewModel.selectNext()
-            }
-        default:
-            return .ignored
-        }
-
-        return .handled
-    }
-
     private func handleConfiguredNavigationKeyPress(_ key: KeyPress) -> Bool {
         if matchesAnyShortcut(navigation.previous, keyPress: key) {
             viewModel.selectPrev()
@@ -211,22 +199,11 @@ struct SwitcherView: View {
     }
 
     private func handleBuiltInNavigationKeyPress(_ key: KeyPress) -> Bool {
-        switch key.key {
-        case .upArrow:
-            viewModel.selectPrev()
-            return true
-        case .downArrow:
-            viewModel.selectNext()
-            return true
-        case .tab:
-            if !key.modifiers.contains(.option) || isQuickSwitch {
-                viewModel.selectNext()
-                return true
-            }
-            return false
-        default:
-            return false
-        }
+        interactionController.handleBuiltInNavigationKeyPress(
+            key,
+            onSelectPrevious: viewModel.selectPrev,
+            onSelectNext: viewModel.selectNext
+        )
     }
 
     private func enterSelectedItem() {
@@ -238,62 +215,12 @@ struct SwitcherView: View {
         closeWindow()
     }
 
-    private func installModifierMonitors() {
-        selectOnRelease = false
-        isQuickSwitch = isQuickSwitchActive(for: NSEvent.modifierFlags)
-
-        guard quickSwitchEnabled else {
-            return
-        }
-
-        if localModifierMonitor == nil {
-            localModifierMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
-                handleModifierFlagsChanged(event.modifierFlags)
-                return event
-            }
-        }
-
-        if globalModifierMonitor == nil {
-            globalModifierMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { event in
-                handleModifierFlagsChanged(event.modifierFlags)
-            }
-        }
-    }
-
-    private func removeModifierMonitors() {
-        if let localModifierMonitor {
-            NSEvent.removeMonitor(localModifierMonitor)
-            self.localModifierMonitor = nil
-        }
-
-        if let globalModifierMonitor {
-            NSEvent.removeMonitor(globalModifierMonitor)
-            self.globalModifierMonitor = nil
-        }
-    }
-
     private func handleModifierFlagsChanged(_ flags: NSEvent.ModifierFlags) {
-        guard quickSwitchEnabled else {
-            return
-        }
-
-        if !isQuickSwitchActive(for: flags) {
-            if selectOnRelease {
-                if let item = viewModel.selectedItem {
-                    viewModel.enterItem(item)
-                    closeWindow()
-                }
-                return
-            }
-            isQuickSwitch = false
-        }
-    }
-
-    private func isQuickSwitchActive(for flags: NSEvent.ModifierFlags) -> Bool {
-        guard quickSwitchEnabled else {
-            return false
-        }
-
-        return flags.isSuperset(of: triggerShortcut.modifiers)
+        interactionController.handleModifierFlagsChanged(
+            flags,
+            selectedItem: viewModel.selectedItem,
+            onEnterItem: viewModel.enterItem,
+            onCloseWindow: closeWindow
+        )
     }
 }

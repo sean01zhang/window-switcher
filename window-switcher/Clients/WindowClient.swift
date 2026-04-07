@@ -314,11 +314,17 @@ final class WindowClient {
     }
 
     private func reconcileRecentWindowKeys() {
-        recentWindowKeys = WindowRecentUse.reconcile(recentWindowKeys, with: windows.map(\.recentUseKey))
+        recentWindowKeys = WindowRecentUse.reconcile(
+            recentWindowKeys,
+            with: windows.map(WindowIdentityDescriptors.recentUseKey(for:))
+        )
     }
 
     private func moveWindowToFront(_ window: Window) {
-        recentWindowKeys = WindowRecentUse.movingToFront(window.recentUseKey, in: recentWindowKeys)
+        recentWindowKeys = WindowRecentUse.movingToFront(
+            WindowIdentityDescriptors.recentUseKey(for: window),
+            in: recentWindowKeys
+        )
     }
 
     private func moveTrackedWindowToFront(element: AXUIElement) -> Bool {
@@ -457,7 +463,7 @@ final class WindowClient {
     }
 
     private static func seedRecentWindowKeys(for windows: [Window]) -> [WindowRecentUseKey] {
-        let snapshot = windows.map(\.recentUseSnapshotEntry)
+        let snapshot = windows.map(WindowIdentityDescriptors.recentUseSnapshotEntry(for:))
         let candidates = getOnScreenWindowCandidates(for: windows)
         return WindowRecentUse.seededKeys(snapshot: snapshot, from: candidates)
     }

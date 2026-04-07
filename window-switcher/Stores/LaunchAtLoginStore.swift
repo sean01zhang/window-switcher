@@ -1,43 +1,34 @@
-import Foundation
-import ServiceManagement
 import Observation
 
 @MainActor
 @Observable
-final class LaunchAtLoginManager {
-    static let shared = LaunchAtLoginManager()
+final class LaunchAtLoginStore {
+    private let client: any LaunchAtLoginClient
 
     private(set) var isEnabled = false
     private(set) var needsApproval = false
 
-    private init() {
+    init(client: any LaunchAtLoginClient = SystemLaunchAtLoginClient()) {
+        self.client = client
         refreshStatus()
     }
 
     func refreshStatus() {
-        switch SMAppService.mainApp.status {
+        switch client.status() {
         case .enabled:
             isEnabled = true
             needsApproval = false
         case .requiresApproval:
             isEnabled = true
             needsApproval = true
-        case .notRegistered, .notFound:
-            isEnabled = false
-            needsApproval = false
-        @unknown default:
+        case .disabled:
             isEnabled = false
             needsApproval = false
         }
     }
 
     func setEnabled(_ enabled: Bool) throws {
-        if enabled {
-            try SMAppService.mainApp.register()
-        } else {
-            try SMAppService.mainApp.unregister()
-        }
-
+        try client.setEnabled(enabled)
         refreshStatus()
     }
 }

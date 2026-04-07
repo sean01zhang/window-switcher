@@ -46,7 +46,7 @@ enum SwitcherSearchResults {
         case (.application, .window):
             return false
         default:
-            return lhs.1.sortLabel < rhs.1.sortLabel
+            return SearchItemDescriptors.sortLabel(for: lhs.1) < SearchItemDescriptors.sortLabel(for: rhs.1)
         }
     }
 }
@@ -81,10 +81,19 @@ extension SwitcherView {
         // Utilities
         let windowClient: WindowClient
         let streamClient: WindowStreamClient
+        let applicationIndexStore: ApplicationIndexStore
+        let workspaceClient: any WorkspaceClient
 
-        init(windowClient: WindowClient, streamClient: WindowStreamClient) {
+        init(
+            windowClient: WindowClient,
+            streamClient: WindowStreamClient,
+            applicationIndexStore: ApplicationIndexStore,
+            workspaceClient: any WorkspaceClient
+        ) {
             self.windowClient = windowClient
             self.streamClient = streamClient
+            self.applicationIndexStore = applicationIndexStore
+            self.workspaceClient = workspaceClient
             // Seed initial results
             search()
         }
@@ -96,8 +105,7 @@ extension SwitcherView {
             case .window(let w):
                 windowClient.focusWindow(w)
             case .application(let app):
-                let configuration = NSWorkspace.OpenConfiguration()
-                NSWorkspace.shared.openApplication(at: app.url, configuration: configuration, completionHandler: nil)
+                workspaceClient.openApplication(app.url)
             }
 
             // Perform some cleanup.
@@ -111,7 +119,7 @@ extension SwitcherView {
                 if let cached = windowIconCache[w.appPID] {
                     return cached
                 }
-                let img = NSRunningApplication(processIdentifier: w.appPID)?.icon
+                let img = workspaceClient.runningApplicationIcon(processIdentifier: w.appPID)
                     ?? NSImage(named: NSImage.applicationIconName)
                     ?? NSImage()
                 windowIconCache[w.appPID] = img
@@ -121,7 +129,7 @@ extension SwitcherView {
                 if let cached = appIconCache[path] {
                     return cached
                 }
-                let img = NSWorkspace.shared.icon(forFile: path)
+                let img = workspaceClient.iconForFile(path)
                 appIconCache[path] = img
                 return img
             }
@@ -209,10 +217,8 @@ extension SwitcherView {
                 return
             }
 
-            let windowResults = Windows.search(
-                query,
-                windowClient.getWindows()
-            ).map { ( $0.0, SearchItem.window($0.1) ) }
+            let windowResults = WindowSearch.search(query, in: windowClient.getWindows())
+                .map { ( $0.0, SearchItem.window($0.1) ) }
 
             applySearchResults(windowResults, mode: .searchQuery)
 
@@ -221,7 +227,7 @@ extension SwitcherView {
                     return
                 }
 
-                let appResults = await ApplicationIndex.shared.search(query)
+                let appResults = await applicationIndexStore.search(query)
                 guard !Task.isCancelled, self.searchText == query else {
                     return
                 }

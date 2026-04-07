@@ -7,77 +7,45 @@
 
 import AppKit
 import HotKey
+import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    var window : NSWindow?
-    var hotKey : HotKey?
-    var onboardingWindow: OnboardingWindow?
-    let launchAtLoginManager = LaunchAtLoginManager.shared
-    let permissionManager = PermissionManager.shared
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    var window: NSWindow?
+    var hotKey: HotKey?
+    var onboardingWindow: NSWindow?
+    var onboardingAppDidBecomeActiveObserver: NSObjectProtocol?
+    var lastKnownOnboardingAccessibilityGranted = false
 
-    // Long-lived clients to preserve caches across panels
+    let configStore = ConfigStore()
+    let launchAtLoginStore = LaunchAtLoginStore()
+    let permissionStore = PermissionStore()
+    let applicationIndexStore = ApplicationIndexStore()
+    let workspaceClient: any WorkspaceClient = SystemWorkspaceClient()
+    let appRuntimeClient = AppRuntimeClient.live
+
     let windowClient = WindowClient()
     lazy var streamClient = WindowStreamClient(windowClient.getWindows())
-    
+
+    deinit {
+        if let onboardingAppDidBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(onboardingAppDidBecomeActiveObserver)
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        permissionManager.refreshAll()
-        ConfigStore.shared.reload()
-        launchAtLoginManager.refreshStatus()
+        permissionStore.refreshAll()
+        reloadConfig()
+        launchAtLoginStore.refreshStatus()
+
         Task {
-            await ApplicationIndex.shared.preload()
+            await applicationIndexStore.preload()
         }
-        applyConfiguredHotKey()
 
         DispatchQueue.main.async { [weak self] in
             self?.showOnboardingIfNeeded()
-        }
-    }
-
-    func applicationDidBecomeActive(_ notification: Notification) {
-        let previousAccessibility = permissionManager.accessibilityStatus
-        permissionManager.refreshAll()
-
-        showOnboardingIfNeeded()
-
-        if previousAccessibility != .granted && permissionManager.accessibilityStatus == .granted {
-            refreshWindows()
-        }
-    }
-    
-    private func applyConfiguredHotKey() {
-        let keyCombo = ConfigStore.shared.config.trigger.keyCombo
-        if hotKey?.keyCombo == keyCombo {
-            return
-        }
-
-        hotKey = nil
-        hotKey = HotKey(keyCombo: keyCombo)
-        hotKey?.keyDownHandler = { [weak self] in
-            DispatchQueue.main.async {
-                self?.handleHotKeyTrigger()
-            }
-        }
-    }
-
-    private func reloadConfigForOpen() {
-        ConfigStore.shared.reloadIfNeededForOpen()
-        applyConfiguredHotKey()
-    }
-
-    @discardableResult
-    func handleTrigger() -> Bool {
-        reloadConfigForOpen()
-        guard ensureAccessibility() else { return false }
-        showWindow()
-        return true
-    }
-
-    private func handleHotKeyTrigger() {
-        if handleTrigger() {
-            hotKey = nil
         }
     }
 
@@ -85,19 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = handleTrigger()
     }
 
-    private func ensureAccessibility() -> Bool {
-        permissionManager.refreshAccessibility()
-        guard permissionManager.requiredPermissionsGranted else {
-            showOnboarding()
-            return false
-        }
-        return true
-    }
-
     func openConfigFileFromMenu() {
         do {
             let fileURL = try ConfigLoader.ensureConfigFileExists()
-            if !NSWorkspace.shared.open(fileURL) {
+            if !workspaceClient.openURL(fileURL) {
                 presentErrorAlert(
                     title: "Unable to Open Config",
                     message: "Window Switcher could not open \(fileURL.path)."
@@ -111,50 +70,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func reloadConfigFromMenu() {
+        reloadConfig()
+    }
+
     func setLaunchAtLoginEnabled(_ enabled: Bool) {
         do {
-            try launchAtLoginManager.setEnabled(enabled)
+            try launchAtLoginStore.setEnabled(enabled)
 
-            if launchAtLoginManager.needsApproval {
+            if launchAtLoginStore.needsApproval {
                 presentInfoAlert(
                     title: "Approval Needed",
                     message: "Approve Window Switcher in System Settings > General > Login Items to finish enabling launch on startup."
                 )
             }
         } catch {
-            launchAtLoginManager.refreshStatus()
+            launchAtLoginStore.refreshStatus()
             presentErrorAlert(
                 title: "Unable to Update Launch on Startup",
                 message: error.localizedDescription
             )
-        }
-    }
-    
-    func showWindow() {
-        // Make sure there is only one shown.
-        self.closeWindow()
-        let config = ConfigStore.shared.config
-        
-        let cp = ContentPanel(
-            closeWindow: { [weak self] in self?.closeWindow() },
-            windowClient: windowClient,
-            streamClient: streamClient,
-            triggerShortcut: config.trigger,
-            quickSwitch: config.quickSwitch,
-            navigation: config.navigation,
-            resultListItem: config.resultListItem
-        )
-        
-        window = cp
-        cp.makeKeyAndOrderFront(nil)
-        cp.makeKey()
-    }
-    
-    func closeWindow() {
-        if let w = window {
-            w.close()
-            window = nil
-            applyConfiguredHotKey()
         }
     }
 
@@ -171,29 +106,187 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showOnboarding() {
-        guard onboardingWindow == nil else {
-            onboardingWindow?.present()
+        if let onboardingWindow {
+            refreshOnboardingPermissions()
+            onboardingWindow.makeKeyAndOrderFront(nil)
+            onboardingWindow.orderFrontRegardless()
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
         hotKey = nil
-        let window = OnboardingWindow(permissionManager: permissionManager, onDismiss: { [weak self] in
-            self?.dismissOnboarding()
-        })
-        onboardingWindow = window
-        window.present()
+        lastKnownOnboardingAccessibilityGranted = permissionStore.requiredPermissionsGranted
+
+        let onboardingWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 360),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: true
+        )
+        onboardingWindow.delegate = self
+        onboardingWindow.contentView = NSHostingView(
+            rootView: OnboardingView(
+                permissionStore: permissionStore,
+                onDismiss: { [weak onboardingWindow] in onboardingWindow?.close() },
+                onRelaunch: { [weak self] in
+                    guard let self else {
+                        return
+                    }
+
+                    do {
+                        try self.appRuntimeClient.relaunch()
+                    } catch {
+                        self.presentErrorAlert(
+                            title: "Unable to Relaunch",
+                            message: error.localizedDescription
+                        )
+                    }
+                }
+            )
+        )
+        onboardingWindow.title = "Welcome to Window Switcher"
+        onboardingWindow.center()
+        onboardingWindow.isReleasedWhenClosed = false
+        self.onboardingWindow = onboardingWindow
+
+        onboardingAppDidBecomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.onboardingWindow?.isVisible == true else {
+                    return
+                }
+
+                self.refreshOnboardingPermissions()
+            }
+        }
+
+        refreshOnboardingPermissions()
+        onboardingWindow.makeKeyAndOrderFront(nil)
+        onboardingWindow.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @discardableResult
+    private func handleTrigger() -> Bool {
+        guard ensureAccessibility() else {
+            return false
+        }
+
+        showWindow()
+        return true
+    }
+
+    private func applyConfiguredHotKey() {
+        let keyCombo = configStore.config.trigger.keyCombo
+        if hotKey?.keyCombo == keyCombo {
+            return
+        }
+
+        hotKey = nil
+        hotKey = HotKey(keyCombo: keyCombo)
+        hotKey?.keyDownHandler = { [weak self] in
+            DispatchQueue.main.async {
+                self?.handleHotKeyTrigger()
+            }
+        }
+    }
+
+    private func reloadConfig() {
+        configStore.reload()
+        applyConfiguredHotKey()
+    }
+
+    private func handleHotKeyTrigger() {
+        if handleTrigger() {
+            hotKey = nil
+        }
+    }
+
+    private func ensureAccessibility() -> Bool {
+        let hadAccessibility = permissionStore.requiredPermissionsGranted
+        permissionStore.refreshAccessibility()
+
+        if !hadAccessibility && permissionStore.requiredPermissionsGranted {
+            refreshWindows()
+        }
+
+        guard permissionStore.requiredPermissionsGranted else {
+            showOnboarding()
+            return false
+        }
+
+        return true
+    }
+
+    private func showWindow() {
+        closeWindow()
+
+        let config = configStore.config
+        let panel = ContentPanel(
+            closeWindow: { [weak self] in self?.closeWindow() },
+            windowClient: windowClient,
+            streamClient: streamClient,
+            applicationIndexStore: applicationIndexStore,
+            workspaceClient: workspaceClient,
+            triggerShortcut: config.trigger,
+            quickSwitch: config.quickSwitch,
+            navigation: config.navigation,
+            resultListItem: config.resultListItem
+        )
+
+        window = panel
+        panel.makeKeyAndOrderFront(nil)
+        panel.makeKey()
+    }
+
+    private func closeWindow() {
+        if let window {
+            window.close()
+            self.window = nil
+            applyConfiguredHotKey()
+        }
     }
 
     private func dismissOnboarding() {
         onboardingWindow = nil
+
+        if let onboardingAppDidBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(onboardingAppDidBecomeActiveObserver)
+            self.onboardingAppDidBecomeActiveObserver = nil
+        }
+
+        let hadAccessibility = permissionStore.requiredPermissionsGranted
+        permissionStore.refreshAccessibility()
+        if !hadAccessibility && permissionStore.requiredPermissionsGranted {
+            refreshWindows()
+        }
+
         if window == nil {
             applyConfiguredHotKey()
         }
     }
 
     private func showOnboardingIfNeeded() {
-        guard permissionManager.shouldShowOnboarding else { return }
+        guard permissionStore.shouldShowOnboarding else {
+            return
+        }
+
         showOnboarding()
+    }
+
+    private func refreshOnboardingPermissions() {
+        let hadAccessibility = lastKnownOnboardingAccessibilityGranted
+        permissionStore.refreshAll()
+
+        let hasAccessibility = permissionStore.requiredPermissionsGranted
+        lastKnownOnboardingAccessibilityGranted = hasAccessibility
+
+        if !hadAccessibility && hasAccessibility {
+            refreshWindows()
+        }
     }
 
     private func presentErrorAlert(title: String, message: String) {
@@ -212,5 +305,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        guard notification.object as? NSWindow === onboardingWindow else {
+            return
+        }
+
+        refreshOnboardingPermissions()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard notification.object as? NSWindow === onboardingWindow else {
+            return
+        }
+
+        dismissOnboarding()
     }
 }
