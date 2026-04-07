@@ -1,11 +1,8 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    let permissionManager: PermissionManager
+    let permissionStore: PermissionStore
     let onDismiss: () -> Void
-    let onRelaunch: () -> Void
-
-    @State private var screenRecordingWasGranted = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,33 +13,20 @@ struct OnboardingView: View {
                 permissionRow(
                     title: "Accessibility",
                     description: "Required to list and switch between open windows.",
-                    status: permissionManager.accessibilityStatus,
+                    status: permissionStore.accessibilityStatus,
                     pendingStatusText: "Required",
                     pendingStatusColor: .red,
-                    onRequest: { permissionManager.requestAccessibility() }
+                    onRequest: { permissionStore.requestAccessibility() }
                 )
 
                 permissionRow(
                     title: "Screen Recording",
                     description: "Optional for window preview thumbnails.",
-                    status: permissionManager.screenRecordingStatus,
+                    status: permissionStore.screenRecordingStatus,
                     pendingStatusText: "Optional",
                     pendingStatusColor: .secondary,
-                    onRequest: { permissionManager.requestScreenRecording() }
+                    onRequest: { permissionStore.requestScreenRecording() }
                 )
-            }
-
-            if screenRecordingWasGranted {
-                VStack(spacing: 6) {
-                    Text("You may need to relaunch for Screen Recording to take effect.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Relaunch") {
-                        onRelaunch()
-                    }
-                    .controlSize(.small)
-                }
-                .padding(.top, 8)
             }
 
             Spacer()
@@ -51,11 +35,6 @@ struct OnboardingView: View {
         }
         .padding(32)
         .frame(width: 480, height: 360)
-        .onChange(of: permissionManager.screenRecordingStatus) { oldStatus, newStatus in
-            if oldStatus != .granted && newStatus == .granted {
-                screenRecordingWasGranted = true
-            }
-        }
     }
 
     private var headerSection: some View {
@@ -124,6 +103,6 @@ struct OnboardingView: View {
         }
         .controlSize(.large)
         .keyboardShortcut(.defaultAction)
-        .disabled(!permissionManager.requiredPermissionsGranted)
+        .disabled(!permissionStore.requiredPermissionsGranted)
     }
 }

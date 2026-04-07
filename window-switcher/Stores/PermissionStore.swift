@@ -1,16 +1,9 @@
 import AppKit
 import Observation
 
-enum PermissionStatus: Equatable {
-    case granted
-    case denied
-}
-
 @MainActor
 @Observable
-final class PermissionManager {
-    static let shared = PermissionManager()
-
+final class PermissionStore {
     private let client: any PermissionClient
 
     private(set) var accessibilityStatus: PermissionStatus
@@ -34,8 +27,6 @@ final class PermissionManager {
         self.screenRecordingStatus = client.screenRecordingStatus()
     }
 
-    // MARK: - Accessibility
-
     func refreshAccessibility() {
         let newStatus = client.accessibilityStatus()
         if accessibilityStatus != newStatus {
@@ -52,8 +43,6 @@ final class PermissionManager {
         client.openAccessibilitySettings()
     }
 
-    // MARK: - Screen Recording
-
     func refreshScreenRecording() {
         let newStatus = client.screenRecordingStatus()
         if screenRecordingStatus != newStatus {
@@ -64,13 +53,14 @@ final class PermissionManager {
     func requestScreenRecording() {
         client.requestScreenRecording()
         refreshScreenRecording()
+        if screenRecordingStatus != .granted {
+            client.openScreenRecordingSettings()
+        }
     }
 
     func openScreenRecordingSettings() {
         client.openScreenRecordingSettings()
     }
-
-    // MARK: - Aggregate
 
     func refreshAll() {
         refreshAccessibility()

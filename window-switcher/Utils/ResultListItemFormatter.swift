@@ -63,39 +63,35 @@ extension String {
     }
 }
 
-enum ResultListItemTextFormatter {
+enum ResultListItemFormatter {
     static func text(for item: SearchItem, config: ResultListItemConfig) -> String {
         switch item {
         case .window(let window):
-            return config.window.template.substituting(window.templateValues)
-        case .application(let app):
-            return config.app.template.substituting(app.templateValues)
+            return config.window.template.substituting(windowTemplateValues(window))
+        case .application(let application):
+            return config.app.template.substituting(applicationTemplateValues(application))
         }
     }
 }
 
-private extension Window {
-    var templateValues: [String: any CustomStringConvertible] {
-        [
-            WindowResultListItemProperty.appName.rawValue: appName,
-            WindowResultListItemProperty.title.rawValue: name,
-            WindowResultListItemProperty.name.rawValue: name,
-            WindowResultListItemProperty.fullyQualifiedName.rawValue: fqn(),
-            WindowResultListItemProperty.id.rawValue: id,
-            WindowResultListItemProperty.appPID.rawValue: appPID,
-            WindowResultListItemProperty.x.rawValue: Double(frame?.origin.x ?? 0),
-            WindowResultListItemProperty.y.rawValue: Double(frame?.origin.y ?? 0),
-            WindowResultListItemProperty.width.rawValue: Double(frame?.size.width ?? 0),
-            WindowResultListItemProperty.height.rawValue: Double(frame?.size.height ?? 0)
-        ]
-    }
+private func windowTemplateValues(_ window: Window) -> [String: any CustomStringConvertible] {
+    [
+        WindowResultListItemProperty.appName.rawValue: window.appName,
+        WindowResultListItemProperty.title.rawValue: window.name,
+        WindowResultListItemProperty.name.rawValue: window.name,
+        WindowResultListItemProperty.fullyQualifiedName.rawValue: window.fullyQualifiedName,
+        WindowResultListItemProperty.id.rawValue: window.id,
+        WindowResultListItemProperty.appPID.rawValue: window.appPID,
+        WindowResultListItemProperty.x.rawValue: Double(window.frame?.origin.x ?? 0),
+        WindowResultListItemProperty.y.rawValue: Double(window.frame?.origin.y ?? 0),
+        WindowResultListItemProperty.width.rawValue: Double(window.frame?.size.width ?? 0),
+        WindowResultListItemProperty.height.rawValue: Double(window.frame?.size.height ?? 0)
+    ]
 }
 
-private extension Application {
-    var templateValues: [String: any CustomStringConvertible] {
-        [
-            ApplicationResultListItemProperty.name.rawValue: name,
-            ApplicationResultListItemProperty.path.rawValue: url.path
-        ]
-    }
+private func applicationTemplateValues(_ application: Application) -> [String: any CustomStringConvertible] {
+    [
+        ApplicationResultListItemProperty.name.rawValue: application.name,
+        ApplicationResultListItemProperty.path.rawValue: application.url.path
+    ]
 }

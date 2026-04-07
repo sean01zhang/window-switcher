@@ -10,94 +10,48 @@ import HotKey
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    var window : NSWindow?
-    var hotKey : HotKey?
-    var onboardingWindow: OnboardingWindow?
-    let launchAtLoginManager = LaunchAtLoginManager.shared
-    let permissionManager = PermissionManager.shared
+    var window: NSWindow?
+    var hotKey: HotKey?
 
-    // Long-lived clients to preserve caches across panels
+    let configStore = ConfigStore()
+    let launchAtLoginClient = LaunchAtLoginClient()
+    let permissionStore = PermissionStore()
+    let installedApplicationsClient = InstalledApplicationsClient()
+    let workspaceClient: any WorkspaceClient = SystemWorkspaceClient()
+    let appRuntimeClient = AppRuntimeClient.live
+
     let windowClient = WindowClient()
     lazy var streamClient = WindowStreamClient(windowClient.getWindows())
-    
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        permissionManager.refreshAll()
-        ConfigStore.shared.reload()
-        launchAtLoginManager.refreshStatus()
+        permissionStore.refreshAll()
+        reloadConfig()
+
         Task {
-            await ApplicationIndex.shared.preload()
+            await installedApplicationsClient.preload()
         }
-        applyConfiguredHotKey()
 
         DispatchQueue.main.async { [weak self] in
-            self?.showOnboardingIfNeeded()
-        }
-    }
-
-    func applicationDidBecomeActive(_ notification: Notification) {
-        let previousAccessibility = permissionManager.accessibilityStatus
-        permissionManager.refreshAll()
-
-        showOnboardingIfNeeded()
-
-        if previousAccessibility != .granted && permissionManager.accessibilityStatus == .granted {
-            refreshWindows()
-        }
-    }
-    
-    private func applyConfiguredHotKey() {
-        let keyCombo = ConfigStore.shared.config.trigger.keyCombo
-        if hotKey?.keyCombo == keyCombo {
-            return
-        }
-
-        hotKey = nil
-        hotKey = HotKey(keyCombo: keyCombo)
-        hotKey?.keyDownHandler = { [weak self] in
-            DispatchQueue.main.async {
-                self?.handleHotKeyTrigger()
+            if self?.permissionStore.shouldShowOnboarding == true {
+                self?.showWindow()
             }
         }
     }
 
-    private func reloadConfigForOpen() {
-        ConfigStore.shared.reloadIfNeededForOpen()
-        applyConfiguredHotKey()
-    }
-
-    @discardableResult
-    func handleTrigger() -> Bool {
-        reloadConfigForOpen()
-        guard ensureAccessibility() else { return false }
-        showWindow()
-        return true
-    }
-
-    private func handleHotKeyTrigger() {
-        if handleTrigger() {
-            hotKey = nil
-        }
-    }
-
     func openSwitcherFromMenu() {
-        _ = handleTrigger()
+        routeTrigger()
     }
-
-    private func ensureAccessibility() -> Bool {
-        permissionManager.refreshAccessibility()
-        guard permissionManager.requiredPermissionsGranted else {
-            showOnboarding()
-            return false
-        }
-        return true
+    
+    func reloadConfigFromMenu() {
+        reloadConfig()
     }
 
     func openConfigFileFromMenu() {
         do {
             let fileURL = try ConfigLoader.ensureConfigFileExists()
-            if !NSWorkspace.shared.open(fileURL) {
+            if !workspaceClient.openURL(fileURL) {
                 presentErrorAlert(
                     title: "Unable to Open Config",
                     message: "Window Switcher could not open \(fileURL.path)."
@@ -111,52 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func setLaunchAtLoginEnabled(_ enabled: Bool) {
-        do {
-            try launchAtLoginManager.setEnabled(enabled)
-
-            if launchAtLoginManager.needsApproval {
-                presentInfoAlert(
-                    title: "Approval Needed",
-                    message: "Approve Window Switcher in System Settings > General > Login Items to finish enabling launch on startup."
-                )
-            }
-        } catch {
-            launchAtLoginManager.refreshStatus()
-            presentErrorAlert(
-                title: "Unable to Update Launch on Startup",
-                message: error.localizedDescription
-            )
-        }
-    }
-    
-    func showWindow() {
-        // Make sure there is only one shown.
-        self.closeWindow()
-        let config = ConfigStore.shared.config
-        
-        let cp = ContentPanel(
-            closeWindow: { [weak self] in self?.closeWindow() },
-            windowClient: windowClient,
-            streamClient: streamClient,
-            triggerShortcut: config.trigger,
-            quickSwitch: config.quickSwitch,
-            navigation: config.navigation,
-            resultListItem: config.resultListItem
-        )
-        
-        window = cp
-        cp.makeKeyAndOrderFront(nil)
-        cp.makeKey()
-    }
-    
-    func closeWindow() {
-        if let w = window {
-            w.close()
-            window = nil
-            applyConfiguredHotKey()
-        }
-    }
 
     func refreshWindows() {
         windowClient.refresh()
@@ -170,30 +78,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func showOnboarding() {
-        guard onboardingWindow == nil else {
-            onboardingWindow?.present()
+    private func applyConfiguredHotKey() {
+        let keyCombo = configStore.config.trigger.keyCombo
+        if hotKey?.keyCombo == keyCombo {
             return
         }
 
         hotKey = nil
-        let window = OnboardingWindow(permissionManager: permissionManager, onDismiss: { [weak self] in
-            self?.dismissOnboarding()
-        })
-        onboardingWindow = window
-        window.present()
-    }
-
-    private func dismissOnboarding() {
-        onboardingWindow = nil
-        if window == nil {
-            applyConfiguredHotKey()
+        hotKey = HotKey(keyCombo: keyCombo)
+        hotKey?.keyDownHandler = { [weak self] in
+            DispatchQueue.main.async {
+                self?.routeTrigger()
+            }
         }
     }
 
-    private func showOnboardingIfNeeded() {
-        guard permissionManager.shouldShowOnboarding else { return }
-        showOnboarding()
+    private func reloadConfig() {
+        configStore.reload()
+        applyConfiguredHotKey()
+    }
+
+    private func routeTrigger() {
+        if accessibilityWasGranted() {
+            refreshWindows()
+        }
+        
+        toggleWindow()
+    }
+
+    private func showWindow() {
+        var newWindow: NSWindow
+        if permissionStore.shouldShowOnboarding {
+            newWindow = OnboardingPanel(
+                permissionStore: permissionStore,
+                onAccessibilityGranted: { [weak self] in
+                    self?.refreshWindows()
+                },
+                onClose: { [weak self] in
+                    self?.window = nil
+                    self?.applyConfiguredHotKey()
+                }
+            )
+        } else {
+            let config = configStore.config
+            newWindow = ContentPanel(
+                closeWindow: { [weak self] in self?.closeWindow() },
+                windowClient: windowClient,
+                streamClient: streamClient,
+                installedApplicationsClient: installedApplicationsClient,
+                workspaceClient: workspaceClient,
+                triggerShortcut: config.trigger,
+                quickSwitch: config.quickSwitch,
+                navigation: config.navigation,
+                resultListItem: config.resultListItem
+            )
+        }
+        
+        hotKey = nil
+        self.window = newWindow
+        newWindow.makeKeyAndOrderFront(nil)
+        newWindow.makeKey()
+    }
+
+    private func toggleWindow() {
+        if window != nil {
+            closeWindow()
+        } else {
+            showWindow()
+        }
+    }
+
+    private func closeWindow() {
+        guard let window else {
+            return
+        }
+
+        window.close()
+        self.window = nil
+        applyConfiguredHotKey()
+    }
+
+    private func accessibilityWasGranted() -> Bool {
+        let hadAccessibility = permissionStore.requiredPermissionsGranted
+        permissionStore.refreshAccessibility()
+        return !hadAccessibility && permissionStore.requiredPermissionsGranted
     }
 
     private func presentErrorAlert(title: String, message: String) {
@@ -213,4 +181,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
+
+    func presentLaunchAtLoginApprovalAlert() {
+        presentInfoAlert(
+            title: "Approval Needed",
+            message: "Approve Window Switcher in System Settings > General > Login Items to finish enabling launch on startup."
+        )
+    }
+
+    func presentLaunchAtLoginUpdateError(_ error: Error) {
+        presentErrorAlert(
+            title: "Unable to Update Launch on Startup",
+            message: error.localizedDescription
+        )
+    }
+
 }

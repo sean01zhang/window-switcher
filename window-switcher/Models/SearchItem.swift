@@ -7,7 +7,7 @@ enum SearchItem: Hashable {
     var sortLabel: String {
         switch self {
         case .window(let window):
-            return FuzzySearch.normalize(window.fqn())
+            return FuzzySearch.normalize(window.fullyQualifiedName)
         case .application(let application):
             return FuzzySearch.normalize(application.name)
         }

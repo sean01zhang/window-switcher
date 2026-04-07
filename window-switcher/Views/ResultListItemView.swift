@@ -25,7 +25,7 @@ struct ResultListItemView: View {
     }
 
     private func text() -> String {
-        ResultListItemTextFormatter.text(for: item, config: config)
+        ResultListItemFormatter.text(for: item, config: config)
     }
 
     var body: some View {

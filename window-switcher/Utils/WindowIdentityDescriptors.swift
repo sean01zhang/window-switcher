@@ -45,19 +45,19 @@ struct WindowRecentUseSeedCandidate: Hashable {
     let recentUseKey: WindowRecentUseKey?
 }
 
-extension Window {
-    var windowTitleKey: WindowTitleKey {
-        WindowTitleKey(appPID: appPID, title: name)
+enum WindowIdentityDescriptors {
+    static func titleKey(for window: Window) -> WindowTitleKey {
+        WindowTitleKey(appPID: window.appPID, title: window.name)
     }
 
-    var recentUseKey: WindowRecentUseKey {
-        WindowRecentUseKey(appPID: appPID, title: name, frame: frame)
+    static func recentUseKey(for window: Window) -> WindowRecentUseKey {
+        WindowRecentUseKey(appPID: window.appPID, title: window.name, frame: window.frame)
     }
 
-    var recentUseSnapshotEntry: WindowRecentUseSnapshotEntry {
+    static func recentUseSnapshotEntry(for window: Window) -> WindowRecentUseSnapshotEntry {
         WindowRecentUseSnapshotEntry(
-            titleKey: windowTitleKey,
-            recentUseKey: recentUseKey
+            titleKey: titleKey(for: window),
+            recentUseKey: recentUseKey(for: window)
         )
     }
 }
@@ -66,7 +66,7 @@ enum WindowRecentUse {
     static func orderedWindows(_ windows: [Window], recentKeys: [WindowRecentUseKey]) -> [Window] {
         var remainingIndicesByKey: [WindowRecentUseKey: [Int]] = [:]
         for (index, window) in windows.enumerated() {
-            remainingIndicesByKey[window.recentUseKey, default: []].append(index)
+            remainingIndicesByKey[WindowIdentityDescriptors.recentUseKey(for: window), default: []].append(index)
         }
 
         var consumedIndices: Set<Int> = []
