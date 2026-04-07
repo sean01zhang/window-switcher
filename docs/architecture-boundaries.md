@@ -7,6 +7,7 @@ This repository uses a small set of object roles. The goal is to keep responsibi
 - Pure data only.
 - No `@Observable`, `@MainActor`, `Task`, `NSWorkspace`, file I/O, AX calls, or app lifecycle logic.
 - Fine for enums, structs, decoding types, config data, identifiers, and values.
+- Small side-effect-free derived data is also fine when it stays obviously tied to the value itself, for example `Window.fullyQualifiedName`.
 - If it could be serialized, compared, or passed around without the app running, it probably belongs here.
 
 ## Clients
@@ -54,13 +55,25 @@ This repository uses a small set of object roles. The goal is to keep responsibi
 - "Is this shared state across multiple screens or app flow?" -> Store
 - "Is this only for one UI surface?" -> ViewModel
 
-## Current Repo Examples
+## Stable Examples
 
-- `window-switcher/Models/PermissionStatus.swift` -> Model
-- `window-switcher/Clients/PermissionClient.swift` -> Client
-- `window-switcher/Services/PermissionStore.swift` -> Store
-- `window-switcher/ViewModels/SwitcherViewModel.swift` -> ViewModel
+- A permission status enum is a model.
+- A thin wrapper over `SMAppService`, `NSWorkspace`, Accessibility APIs, or ScreenCaptureKit is a client.
+- An installed-app index that caches results from the filesystem can still be a client if the cache is part of that boundary.
+- Shared permission state used by onboarding, app flow, and menu UI is a store.
+- Menu-only toggle state or switcher-session search state is a view model.
 
-## Naming Note
+## Review Checklist
 
-If the `Services/` folder is used specifically for shared observable state, consider renaming it to `Stores/` later. `Service` and `Store` are different roles, and mixing the terms can blur the boundary again.
+- If a type touches system APIs directly, make sure it is not pretending to be a model.
+- If a type is observable, ask whether that state is shared app state or only view-scoped state.
+- If a type exists only to support one surface, prefer a view model over a store.
+- If a helper is pure and tiny, prefer placing it near the type it describes instead of creating a standalone utility file.
+- If a client becomes stateful, make sure that state is naturally tied to the underlying boundary rather than being unrelated UI state.
+
+## Naming Guidance
+
+- Use `Client` for external-system boundaries.
+- Use `Store` for shared app/domain state.
+- Use `ViewModel` for UI-scoped state and interaction logic.
+- Avoid using `Service` unless the type does not clearly fit `Client`, `Store`, or `ViewModel`.

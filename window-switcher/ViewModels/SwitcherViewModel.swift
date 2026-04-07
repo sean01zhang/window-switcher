@@ -46,7 +46,7 @@ enum SwitcherSearchResults {
         case (.application, .window):
             return false
         default:
-            return SearchItemDescriptors.sortLabel(for: lhs.1) < SearchItemDescriptors.sortLabel(for: rhs.1)
+            return lhs.1.sortLabel < rhs.1.sortLabel
         }
     }
 }
