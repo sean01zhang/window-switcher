@@ -179,14 +179,14 @@ final class WindowClient {
             workspaceNotificationCenter.addObserver(
                 forName: NSWorkspace.didLaunchApplicationNotification,
                 object: nil,
-                queue: nil
+                queue: .main
             ) { [weak self] notification in
                 self?.handleWorkspaceLaunch(notification)
             },
             workspaceNotificationCenter.addObserver(
                 forName: NSWorkspace.didTerminateApplicationNotification,
                 object: nil,
-                queue: nil
+                queue: .main
             ) { [weak self] notification in
                 self?.handleWorkspaceTermination(notification)
             }
@@ -206,8 +206,23 @@ final class WindowClient {
             return
         }
 
-        syncWindows(for: app.processIdentifier)
+        let pid = app.processIdentifier
+        syncWindows(for: pid)
         startObserving(apps: [app])
+
+        // Newly launched apps may not have their accessibility server ready yet,
+        // causing observer registration to fail silently. Retry after a short
+        // delay to pick up the app once it finishes launching.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self else { return }
+            self.syncWindows(for: pid)
+            if self.applicationObservers[pid] == nil {
+                if let freshApp = NSRunningApplication(processIdentifier: pid),
+                   freshApp.activationPolicy == .regular {
+                    self.startObserving(apps: [freshApp])
+                }
+            }
+        }
     }
 
     private func handleWorkspaceTermination(_ notification: Notification) {
@@ -260,7 +275,7 @@ final class WindowClient {
                 }
             }
 
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+            CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
         }
     }
 
@@ -269,7 +284,7 @@ final class WindowClient {
             return
         }
 
-        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
     }
 
     private func resetObservers() {
