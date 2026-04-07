@@ -198,14 +198,6 @@ struct SwitcherView: View {
         }
     }
 
-    private func handleBuiltInNavigationKeyPress(_ key: KeyPress) -> Bool {
-        interactionController.handleBuiltInNavigationKeyPress(
-            key,
-            onSelectPrevious: viewModel.selectPrev,
-            onSelectNext: viewModel.selectNext
-        )
-    }
-
     private func enterSelectedItem() {
         guard let item = viewModel.selectedItem else {
             return

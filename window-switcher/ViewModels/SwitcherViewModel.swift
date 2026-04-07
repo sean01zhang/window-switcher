@@ -2,55 +2,6 @@ import SwiftUI
 import AppKit
 import Observation
 
-enum SwitcherSearchMode {
-    case blankQuery
-    case searchQuery
-}
-
-enum SwitcherSearchResults {
-    static func orderedItems(
-        from resultScores: [(Int16, SearchItem)],
-        mode: SwitcherSearchMode
-    ) -> [SearchItem] {
-        switch mode {
-        case .blankQuery:
-            return resultScores.map(\.1)
-        case .searchQuery:
-            return resultScores
-                .sorted(by: compareSearchResults)
-                .map(\.1)
-        }
-    }
-
-    static func initialSelectionIndex(
-        resultCount: Int,
-        mode: SwitcherSearchMode
-    ) -> Int? {
-        guard resultCount > 0 else {
-            return nil
-        }
-        return 0
-    }
-
-    static func compareSearchResults(
-        lhs: (Int16, SearchItem),
-        rhs: (Int16, SearchItem)
-    ) -> Bool {
-        if lhs.0 != rhs.0 {
-            return lhs.0 > rhs.0
-        }
-
-        switch (lhs.1, rhs.1) {
-        case (.window, .application):
-            return true
-        case (.application, .window):
-            return false
-        default:
-            return lhs.1.sortLabel < rhs.1.sortLabel
-        }
-    }
-}
-
 extension SwitcherView {
     @MainActor
     @Observable
@@ -211,16 +162,14 @@ extension SwitcherView {
 
             let query = searchText
             if query.isEmpty {
-                let windowResults = windowClient.getWindowsByRecentUse()
-                    .map { (Int16(0), SearchItem.window($0)) }
-                applySearchResults(windowResults, mode: .blankQuery)
+                applySearchItems(windowClient.getWindowsByRecentUse().map(SearchItem.window))
                 return
             }
 
             let windowResults = WindowSearch.search(query, in: windowClient.getWindows())
                 .map { ( $0.0, SearchItem.window($0.1) ) }
 
-            applySearchResults(windowResults, mode: .searchQuery)
+            applyRankedSearchResults(windowResults)
 
             applicationSearchTask = Task { [weak self] in
                 guard let self else {
@@ -232,27 +181,36 @@ extension SwitcherView {
                     return
                 }
 
-                self.applySearchResults(
-                    windowResults + appResults.map { ( $0.0, SearchItem.application($0.1) ) },
-                    mode: .searchQuery
+                self.applyRankedSearchResults(
+                    windowResults + appResults.map { ( $0.0, SearchItem.application($0.1) ) }
                 )
             }
         }
 
-        private func applySearchResults(
-            _ resultScores: [(Int16, SearchItem)],
-            mode: SwitcherSearchMode
-        ) {
-            let results = SwitcherSearchResults.orderedItems(from: resultScores, mode: mode)
-            searchItems = results
+        private func applyRankedSearchResults(_ resultScores: [(Int16, SearchItem)]) {
+            applySearchItems(resultScores.sorted(by: compareSearchResults).map(\.1))
+        }
 
-            if let selectedIndex = SwitcherSearchResults.initialSelectionIndex(
-                resultCount: results.count,
-                mode: mode
-            ) {
-                selectedItem = results[selectedIndex]
-            } else {
-                selectedItem = nil
+        private func applySearchItems(_ items: [SearchItem]) {
+            searchItems = items
+            selectedItem = items.first
+        }
+
+        private func compareSearchResults(
+            lhs: (Int16, SearchItem),
+            rhs: (Int16, SearchItem)
+        ) -> Bool {
+            if lhs.0 != rhs.0 {
+                return lhs.0 > rhs.0
+            }
+
+            switch (lhs.1, rhs.1) {
+            case (.window, .application):
+                return true
+            case (.application, .window):
+                return false
+            default:
+                return lhs.1.sortLabel < rhs.1.sortLabel
             }
         }
     }

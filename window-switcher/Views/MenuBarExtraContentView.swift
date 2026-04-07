@@ -5,9 +5,11 @@ struct MenuBarExtraContentView: View {
     let appDelegate: AppDelegate
     let configStore: ConfigStore
     let permissionStore: PermissionStore
+    let launchAtLoginClient: LaunchAtLoginClient
     let workspaceClient: any WorkspaceClient
     let appRuntimeClient: AppRuntimeClient
-    @State private var viewModel: MenuBarExtraViewModel
+    @State private var launchAtLoginEnabled = false
+    @State private var launchAtLoginNeedsApproval = false
 
     init(
         versionIdentifier: String,
@@ -17,17 +19,14 @@ struct MenuBarExtraContentView: View {
         launchAtLoginClient: LaunchAtLoginClient,
         workspaceClient: any WorkspaceClient,
         appRuntimeClient: AppRuntimeClient
-    ) {
+        ) {
         self.versionIdentifier = versionIdentifier
         self.appDelegate = appDelegate
         self.configStore = configStore
         self.permissionStore = permissionStore
+        self.launchAtLoginClient = launchAtLoginClient
         self.workspaceClient = workspaceClient
         self.appRuntimeClient = appRuntimeClient
-        _viewModel = State(initialValue: MenuBarExtraViewModel(
-            launchAtLoginClient: launchAtLoginClient,
-            permissionStore: permissionStore
-        ))
     }
 
     var body: some View {
@@ -53,11 +52,11 @@ struct MenuBarExtraContentView: View {
             Toggle(
                 "Launch on Startup",
                 isOn: Binding(
-                    get: { viewModel.launchAtLoginEnabled },
+                    get: { launchAtLoginEnabled },
                     set: updateLaunchAtLogin
                 )
             )
-            if viewModel.launchAtLoginNeedsApproval {
+            if launchAtLoginNeedsApproval {
                 Text("Waiting for Login Items approval")
                     .foregroundStyle(.secondary)
             }
@@ -75,7 +74,7 @@ struct MenuBarExtraContentView: View {
         }
         .frame(maxWidth: .infinity)
         .onAppear {
-            viewModel.refresh()
+            refreshMenuState()
         }
     }
 
@@ -128,13 +127,30 @@ struct MenuBarExtraContentView: View {
 
     private func updateLaunchAtLogin(_ enabled: Bool) {
         do {
-            let needsApproval = try viewModel.setLaunchAtLoginEnabled(enabled)
-            if needsApproval {
+            try launchAtLoginClient.setEnabled(enabled)
+            refreshMenuState()
+            if launchAtLoginNeedsApproval {
                 appDelegate.presentLaunchAtLoginApprovalAlert()
             }
         } catch {
-            viewModel.refresh()
+            refreshMenuState()
             appDelegate.presentLaunchAtLoginUpdateError(error)
+        }
+    }
+
+    private func refreshMenuState() {
+        permissionStore.refreshAll()
+
+        switch launchAtLoginClient.status() {
+        case .enabled:
+            launchAtLoginEnabled = true
+            launchAtLoginNeedsApproval = false
+        case .requiresApproval:
+            launchAtLoginEnabled = true
+            launchAtLoginNeedsApproval = true
+        case .disabled:
+            launchAtLoginEnabled = false
+            launchAtLoginNeedsApproval = false
         }
     }
 }

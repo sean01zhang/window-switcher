@@ -186,10 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func ensureAccessibility() -> Bool {
-        let hadAccessibility = permissionStore.requiredPermissionsGranted
-        permissionStore.refreshAccessibility()
-
-        if !hadAccessibility && permissionStore.requiredPermissionsGranted {
+        if refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: false) {
             refreshWindows()
         }
 
@@ -238,9 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.onboardingAppDidBecomeActiveObserver = nil
         }
 
-        let hadAccessibility = permissionStore.requiredPermissionsGranted
-        permissionStore.refreshAccessibility()
-        if !hadAccessibility && permissionStore.requiredPermissionsGranted {
+        if refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: false) {
             refreshWindows()
         }
 
@@ -258,15 +253,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func refreshOnboardingPermissions() {
-        let hadAccessibility = lastKnownOnboardingAccessibilityGranted
-        permissionStore.refreshAll()
+        if refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: true) {
+            refreshWindows()
+        }
+    }
+
+    private func refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: Bool) -> Bool {
+        let hadAccessibility = permissionStore.requiredPermissionsGranted
+        if fullRefresh {
+            permissionStore.refreshAll()
+        } else {
+            permissionStore.refreshAccessibility()
+        }
 
         let hasAccessibility = permissionStore.requiredPermissionsGranted
         lastKnownOnboardingAccessibilityGranted = hasAccessibility
-
-        if !hadAccessibility && hasAccessibility {
-            refreshWindows()
-        }
+        return !hadAccessibility && hasAccessibility
     }
 
     private func presentErrorAlert(title: String, message: String) {
