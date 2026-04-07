@@ -8,6 +8,10 @@ struct Window: Hashable {
     var frame: CGRect?
     var element: AXUIElement
 
+    var fullyQualifiedName: String {
+        "\(appName): \(name)"
+    }
+
     func hash(into hasher: inout Hasher) {
         element.hash(into: &hasher)
     }

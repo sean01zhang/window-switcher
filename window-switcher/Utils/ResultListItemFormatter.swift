@@ -79,7 +79,7 @@ private func windowTemplateValues(_ window: Window) -> [String: any CustomString
         WindowResultListItemProperty.appName.rawValue: window.appName,
         WindowResultListItemProperty.title.rawValue: window.name,
         WindowResultListItemProperty.name.rawValue: window.name,
-        WindowResultListItemProperty.fullyQualifiedName.rawValue: fullyQualifiedWindowName(window),
+        WindowResultListItemProperty.fullyQualifiedName.rawValue: window.fullyQualifiedName,
         WindowResultListItemProperty.id.rawValue: window.id,
         WindowResultListItemProperty.appPID.rawValue: window.appPID,
         WindowResultListItemProperty.x.rawValue: Double(window.frame?.origin.x ?? 0),

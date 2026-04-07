@@ -13,7 +13,7 @@ enum WindowSearch {
             let titleMatch = FuzzySearch.match(query, against: window.name)
             let appMatch = FuzzySearch.match(query, against: window.appName)
             let combinedScore = includeCombinedScore
-                ? FuzzySearch.match(query, against: fullyQualifiedWindowName(window)).score + 25
+                ? FuzzySearch.match(query, against: window.fullyQualifiedName).score + 25
                 : 0
             let score = max(
                 titleMatch.score + 80,
