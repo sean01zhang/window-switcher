@@ -7,12 +7,7 @@ enum LaunchAtLoginStatus {
     case disabled
 }
 
-protocol LaunchAtLoginClient {
-    func status() -> LaunchAtLoginStatus
-    func setEnabled(_ enabled: Bool) throws
-}
-
-struct SystemLaunchAtLoginClient: LaunchAtLoginClient {
+struct LaunchAtLoginClient {
     func status() -> LaunchAtLoginStatus {
         switch SMAppService.mainApp.status {
         case .enabled:

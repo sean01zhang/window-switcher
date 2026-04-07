@@ -81,18 +81,18 @@ extension SwitcherView {
         // Utilities
         let windowClient: WindowClient
         let streamClient: WindowStreamClient
-        let applicationIndexStore: ApplicationIndexStore
+        let installedApplicationsClient: InstalledApplicationsClient
         let workspaceClient: any WorkspaceClient
 
         init(
             windowClient: WindowClient,
             streamClient: WindowStreamClient,
-            applicationIndexStore: ApplicationIndexStore,
+            installedApplicationsClient: InstalledApplicationsClient,
             workspaceClient: any WorkspaceClient
         ) {
             self.windowClient = windowClient
             self.streamClient = streamClient
-            self.applicationIndexStore = applicationIndexStore
+            self.installedApplicationsClient = installedApplicationsClient
             self.workspaceClient = workspaceClient
             // Seed initial results
             search()
@@ -227,7 +227,7 @@ extension SwitcherView {
                     return
                 }
 
-                let appResults = await applicationIndexStore.search(query)
+                let appResults = await installedApplicationsClient.search(query)
                 guard !Task.isCancelled, self.searchText == query else {
                     return
                 }

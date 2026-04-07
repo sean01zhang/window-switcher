@@ -5,9 +5,30 @@ struct MenuBarExtraContentView: View {
     let appDelegate: AppDelegate
     let configStore: ConfigStore
     let permissionStore: PermissionStore
-    let launchAtLoginStore: LaunchAtLoginStore
     let workspaceClient: any WorkspaceClient
     let appRuntimeClient: AppRuntimeClient
+    @State private var viewModel: MenuBarExtraViewModel
+
+    init(
+        versionIdentifier: String,
+        appDelegate: AppDelegate,
+        configStore: ConfigStore,
+        permissionStore: PermissionStore,
+        launchAtLoginClient: LaunchAtLoginClient,
+        workspaceClient: any WorkspaceClient,
+        appRuntimeClient: AppRuntimeClient
+    ) {
+        self.versionIdentifier = versionIdentifier
+        self.appDelegate = appDelegate
+        self.configStore = configStore
+        self.permissionStore = permissionStore
+        self.workspaceClient = workspaceClient
+        self.appRuntimeClient = appRuntimeClient
+        _viewModel = State(initialValue: MenuBarExtraViewModel(
+            launchAtLoginClient: launchAtLoginClient,
+            permissionStore: permissionStore
+        ))
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -32,11 +53,11 @@ struct MenuBarExtraContentView: View {
             Toggle(
                 "Launch on Startup",
                 isOn: Binding(
-                    get: { launchAtLoginStore.isEnabled },
-                    set: { appDelegate.setLaunchAtLoginEnabled($0) }
+                    get: { viewModel.launchAtLoginEnabled },
+                    set: updateLaunchAtLogin
                 )
             )
-            if launchAtLoginStore.needsApproval {
+            if viewModel.launchAtLoginNeedsApproval {
                 Text("Waiting for Login Items approval")
                     .foregroundStyle(.secondary)
             }
@@ -53,6 +74,9 @@ struct MenuBarExtraContentView: View {
             .keyboardShortcut("q")
         }
         .frame(maxWidth: .infinity)
+        .onAppear {
+            viewModel.refresh()
+        }
     }
 
     @ViewBuilder
@@ -99,6 +123,18 @@ struct MenuBarExtraContentView: View {
             Button("Open Switcher (\(configStore.config.trigger.displayString))") {
                 appDelegate.openSwitcherFromMenu()
             }
+        }
+    }
+
+    private func updateLaunchAtLogin(_ enabled: Bool) {
+        do {
+            let needsApproval = try viewModel.setLaunchAtLoginEnabled(enabled)
+            if needsApproval {
+                appDelegate.presentLaunchAtLoginApprovalAlert()
+            }
+        } catch {
+            viewModel.refresh()
+            appDelegate.presentLaunchAtLoginUpdateError(error)
         }
     }
 }

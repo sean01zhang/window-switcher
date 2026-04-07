@@ -18,9 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var lastKnownOnboardingAccessibilityGranted = false
 
     let configStore = ConfigStore()
-    let launchAtLoginStore = LaunchAtLoginStore()
+    let launchAtLoginClient = LaunchAtLoginClient()
     let permissionStore = PermissionStore()
-    let applicationIndexStore = ApplicationIndexStore()
+    let installedApplicationsClient = InstalledApplicationsClient()
     let workspaceClient: any WorkspaceClient = SystemWorkspaceClient()
     let appRuntimeClient = AppRuntimeClient.live
 
@@ -38,10 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         permissionStore.refreshAll()
         reloadConfig()
-        launchAtLoginStore.refreshStatus()
 
         Task {
-            await applicationIndexStore.preload()
+            await installedApplicationsClient.preload()
         }
 
         DispatchQueue.main.async { [weak self] in
@@ -72,25 +71,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func reloadConfigFromMenu() {
         reloadConfig()
-    }
-
-    func setLaunchAtLoginEnabled(_ enabled: Bool) {
-        do {
-            try launchAtLoginStore.setEnabled(enabled)
-
-            if launchAtLoginStore.needsApproval {
-                presentInfoAlert(
-                    title: "Approval Needed",
-                    message: "Approve Window Switcher in System Settings > General > Login Items to finish enabling launch on startup."
-                )
-            }
-        } catch {
-            launchAtLoginStore.refreshStatus()
-            presentErrorAlert(
-                title: "Unable to Update Launch on Startup",
-                message: error.localizedDescription
-            )
-        }
     }
 
     func refreshWindows() {
@@ -229,7 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             closeWindow: { [weak self] in self?.closeWindow() },
             windowClient: windowClient,
             streamClient: streamClient,
-            applicationIndexStore: applicationIndexStore,
+            installedApplicationsClient: installedApplicationsClient,
             workspaceClient: workspaceClient,
             triggerShortcut: config.trigger,
             quickSwitch: config.quickSwitch,
@@ -305,6 +285,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+
+    func presentLaunchAtLoginApprovalAlert() {
+        presentInfoAlert(
+            title: "Approval Needed",
+            message: "Approve Window Switcher in System Settings > General > Login Items to finish enabling launch on startup."
+        )
+    }
+
+    func presentLaunchAtLoginUpdateError(_ error: Error) {
+        presentErrorAlert(
+            title: "Unable to Update Launch on Startup",
+            message: error.localizedDescription
+        )
     }
 
     func windowDidBecomeKey(_ notification: Notification) {

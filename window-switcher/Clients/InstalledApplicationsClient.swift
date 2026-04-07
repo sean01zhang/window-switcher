@@ -1,11 +1,46 @@
 import AppKit
 
-protocol InstalledApplicationsClient {
-    func installedApplications() -> [Application]
-}
+actor InstalledApplicationsClient {
+    private var cachedApplications: [Application]?
+    private var loadTask: Task<[Application], Never>?
 
-struct SystemInstalledApplicationsClient: InstalledApplicationsClient {
-    func installedApplications() -> [Application] {
+    func preload() async {
+        _ = await applications()
+    }
+
+    func search(_ query: String) async -> [(Int16, Application)] {
+        guard !query.isEmpty else {
+            return []
+        }
+
+        return await applications().compactMap { application in
+            let score = FuzzySearch.match(query, against: application.name).score
+            guard score > 0 else {
+                return nil
+            }
+
+            return (score, application)
+        }
+    }
+
+    private func applications() async -> [Application] {
+        if let cachedApplications {
+            return cachedApplications
+        }
+
+        if loadTask == nil {
+            loadTask = Task.detached(priority: .utility) {
+                Self.loadInstalledApplications()
+            }
+        }
+
+        let applications = await loadTask?.value ?? []
+        cachedApplications = applications
+        loadTask = nil
+        return applications
+    }
+
+    private static func loadInstalledApplications() -> [Application] {
         let fileManager = FileManager.default
         var applications: [Application] = []
         let searchPaths = [

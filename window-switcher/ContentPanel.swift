@@ -5,7 +5,7 @@ class ContentPanel: NSPanel {
     private let closeWindow: () -> Void
     private let windowClient: WindowClient
     private let streamClient: WindowStreamClient
-    private let applicationIndexStore: ApplicationIndexStore
+    private let installedApplicationsClient: InstalledApplicationsClient
     private let workspaceClient: any WorkspaceClient
     private let triggerShortcut: TriggerShortcut
     private let quickSwitch: QuickSwitchConfig
@@ -16,7 +16,7 @@ class ContentPanel: NSPanel {
         closeWindow: @escaping () -> Void,
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
-        applicationIndexStore: ApplicationIndexStore,
+        installedApplicationsClient: InstalledApplicationsClient,
         workspaceClient: any WorkspaceClient,
         triggerShortcut: TriggerShortcut,
         quickSwitch: QuickSwitchConfig,
@@ -26,7 +26,7 @@ class ContentPanel: NSPanel {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
-        self.applicationIndexStore = applicationIndexStore
+        self.installedApplicationsClient = installedApplicationsClient
         self.workspaceClient = workspaceClient
         self.triggerShortcut = triggerShortcut
         self.quickSwitch = quickSwitch
@@ -62,7 +62,7 @@ class ContentPanel: NSPanel {
             closeWindow: closeWindow,
             windowClient: windowClient,
             streamClient: streamClient,
-            applicationIndexStore: applicationIndexStore,
+            installedApplicationsClient: installedApplicationsClient,
             workspaceClient: workspaceClient,
             triggerShortcut: triggerShortcut,
             quickSwitchEnabled: quickSwitch.enabled,

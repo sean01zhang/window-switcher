@@ -9,7 +9,7 @@ struct SwitcherView: View {
     let closeWindow: () -> Void
     let windowClient: WindowClient
     let streamClient: WindowStreamClient
-    let applicationIndexStore: ApplicationIndexStore
+    let installedApplicationsClient: InstalledApplicationsClient
     let workspaceClient: any WorkspaceClient
     let triggerShortcut: TriggerShortcut
     let quickSwitchEnabled: Bool
@@ -22,7 +22,7 @@ struct SwitcherView: View {
         closeWindow: @escaping () -> Void,
         windowClient: WindowClient,
         streamClient: WindowStreamClient,
-        applicationIndexStore: ApplicationIndexStore,
+        installedApplicationsClient: InstalledApplicationsClient,
         workspaceClient: any WorkspaceClient,
         triggerShortcut: TriggerShortcut,
         quickSwitchEnabled: Bool,
@@ -32,7 +32,7 @@ struct SwitcherView: View {
         self.closeWindow = closeWindow
         self.windowClient = windowClient
         self.streamClient = streamClient
-        self.applicationIndexStore = applicationIndexStore
+        self.installedApplicationsClient = installedApplicationsClient
         self.workspaceClient = workspaceClient
         self.triggerShortcut = triggerShortcut
         self.quickSwitchEnabled = quickSwitchEnabled
@@ -41,7 +41,7 @@ struct SwitcherView: View {
         _viewModel = State(initialValue: ViewModel(
             windowClient: windowClient,
             streamClient: streamClient,
-            applicationIndexStore: applicationIndexStore,
+            installedApplicationsClient: installedApplicationsClient,
             workspaceClient: workspaceClient
         ))
         _interactionController = State(initialValue: InteractionController(

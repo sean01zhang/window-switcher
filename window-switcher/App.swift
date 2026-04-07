@@ -22,7 +22,7 @@ struct window_switcherApp: App {
                 appDelegate: appDelegate,
                 configStore: appDelegate.configStore,
                 permissionStore: appDelegate.permissionStore,
-                launchAtLoginStore: appDelegate.launchAtLoginStore,
+                launchAtLoginClient: appDelegate.launchAtLoginClient,
                 workspaceClient: appDelegate.workspaceClient,
                 appRuntimeClient: appDelegate.appRuntimeClient
             )
