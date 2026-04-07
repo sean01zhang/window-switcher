@@ -3,9 +3,6 @@ import SwiftUI
 struct OnboardingView: View {
     let permissionStore: PermissionStore
     let onDismiss: () -> Void
-    let onRelaunch: () -> Void
-
-    @State private var screenRecordingWasGranted = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,30 +29,12 @@ struct OnboardingView: View {
                 )
             }
 
-            if screenRecordingWasGranted {
-                VStack(spacing: 6) {
-                    Text("You may need to relaunch for Screen Recording to take effect.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Relaunch") {
-                        onRelaunch()
-                    }
-                    .controlSize(.small)
-                }
-                .padding(.top, 8)
-            }
-
             Spacer()
 
             continueButton
         }
         .padding(32)
         .frame(width: 480, height: 360)
-        .onChange(of: permissionStore.screenRecordingStatus) { oldStatus, newStatus in
-            if oldStatus != .granted && newStatus == .granted {
-                screenRecordingWasGranted = true
-            }
-        }
     }
 
     private var headerSection: some View {

@@ -7,15 +7,11 @@
 
 import AppKit
 import HotKey
-import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
     var hotKey: HotKey?
-    var onboardingWindow: NSWindow?
-    var onboardingAppDidBecomeActiveObserver: NSObjectProtocol?
-    var lastKnownOnboardingAccessibilityGranted = false
 
     let configStore = ConfigStore()
     let launchAtLoginClient = LaunchAtLoginClient()
@@ -26,12 +22,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     let windowClient = WindowClient()
     lazy var streamClient = WindowStreamClient(windowClient.getWindows())
-
-    deinit {
-        if let onboardingAppDidBecomeActiveObserver {
-            NotificationCenter.default.removeObserver(onboardingAppDidBecomeActiveObserver)
-        }
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -44,12 +34,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         DispatchQueue.main.async { [weak self] in
-            self?.showOnboardingIfNeeded()
+            if self?.permissionStore.shouldShowOnboarding == true {
+                self?.showWindow()
+            }
         }
     }
 
     func openSwitcherFromMenu() {
-        _ = handleTrigger()
+        routeTrigger()
+    }
+    
+    func reloadConfigFromMenu() {
+        reloadConfig()
     }
 
     func openConfigFileFromMenu() {
@@ -69,9 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    func reloadConfigFromMenu() {
-        reloadConfig()
-    }
 
     func refreshWindows() {
         windowClient.refresh()
@@ -85,80 +78,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    func showOnboarding() {
-        if let onboardingWindow {
-            refreshOnboardingPermissions()
-            onboardingWindow.makeKeyAndOrderFront(nil)
-            onboardingWindow.orderFrontRegardless()
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        hotKey = nil
-        lastKnownOnboardingAccessibilityGranted = permissionStore.requiredPermissionsGranted
-
-        let onboardingWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 360),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: true
-        )
-        onboardingWindow.delegate = self
-        onboardingWindow.contentView = NSHostingView(
-            rootView: OnboardingView(
-                permissionStore: permissionStore,
-                onDismiss: { [weak onboardingWindow] in onboardingWindow?.close() },
-                onRelaunch: { [weak self] in
-                    guard let self else {
-                        return
-                    }
-
-                    do {
-                        try self.appRuntimeClient.relaunch()
-                    } catch {
-                        self.presentErrorAlert(
-                            title: "Unable to Relaunch",
-                            message: error.localizedDescription
-                        )
-                    }
-                }
-            )
-        )
-        onboardingWindow.title = "Welcome to Window Switcher"
-        onboardingWindow.center()
-        onboardingWindow.isReleasedWhenClosed = false
-        self.onboardingWindow = onboardingWindow
-
-        onboardingAppDidBecomeActiveObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.onboardingWindow?.isVisible == true else {
-                    return
-                }
-
-                self.refreshOnboardingPermissions()
-            }
-        }
-
-        refreshOnboardingPermissions()
-        onboardingWindow.makeKeyAndOrderFront(nil)
-        onboardingWindow.orderFrontRegardless()
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    @discardableResult
-    private func handleTrigger() -> Bool {
-        guard ensureAccessibility() else {
-            return false
-        }
-
-        showWindow()
-        return true
-    }
-
     private func applyConfiguredHotKey() {
         let keyCombo = configStore.config.trigger.keyCombo
         if hotKey?.keyCombo == keyCombo {
@@ -169,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         hotKey = HotKey(keyCombo: keyCombo)
         hotKey?.keyDownHandler = { [weak self] in
             DispatchQueue.main.async {
-                self?.handleHotKeyTrigger()
+                self?.routeTrigger()
             }
         }
     }
@@ -179,96 +98,70 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         applyConfiguredHotKey()
     }
 
-    private func handleHotKeyTrigger() {
-        if handleTrigger() {
-            hotKey = nil
-        }
-    }
-
-    private func ensureAccessibility() -> Bool {
-        if refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: false) {
+    private func routeTrigger() {
+        if accessibilityWasGranted() {
             refreshWindows()
         }
-
-        guard permissionStore.requiredPermissionsGranted else {
-            showOnboarding()
-            return false
-        }
-
-        return true
+        
+        toggleWindow()
     }
 
     private func showWindow() {
-        closeWindow()
+        var newWindow: NSWindow
+        if permissionStore.shouldShowOnboarding {
+            newWindow = OnboardingPanel(
+                permissionStore: permissionStore,
+                onAccessibilityGranted: { [weak self] in
+                    self?.refreshWindows()
+                },
+                onClose: { [weak self] in
+                    self?.window = nil
+                    self?.applyConfiguredHotKey()
+                }
+            )
+        } else {
+            let config = configStore.config
+            newWindow = ContentPanel(
+                closeWindow: { [weak self] in self?.closeWindow() },
+                windowClient: windowClient,
+                streamClient: streamClient,
+                installedApplicationsClient: installedApplicationsClient,
+                workspaceClient: workspaceClient,
+                triggerShortcut: config.trigger,
+                quickSwitch: config.quickSwitch,
+                navigation: config.navigation,
+                resultListItem: config.resultListItem
+            )
+        }
+        
+        hotKey = nil
+        self.window = newWindow
+        newWindow.makeKeyAndOrderFront(nil)
+        newWindow.makeKey()
+    }
 
-        let config = configStore.config
-        let panel = ContentPanel(
-            closeWindow: { [weak self] in self?.closeWindow() },
-            windowClient: windowClient,
-            streamClient: streamClient,
-            installedApplicationsClient: installedApplicationsClient,
-            workspaceClient: workspaceClient,
-            triggerShortcut: config.trigger,
-            quickSwitch: config.quickSwitch,
-            navigation: config.navigation,
-            resultListItem: config.resultListItem
-        )
-
-        window = panel
-        panel.makeKeyAndOrderFront(nil)
-        panel.makeKey()
+    private func toggleWindow() {
+        if window != nil {
+            closeWindow()
+        } else {
+            showWindow()
+        }
     }
 
     private func closeWindow() {
-        if let window {
-            window.close()
-            self.window = nil
-            applyConfiguredHotKey()
-        }
-    }
-
-    private func dismissOnboarding() {
-        onboardingWindow = nil
-
-        if let onboardingAppDidBecomeActiveObserver {
-            NotificationCenter.default.removeObserver(onboardingAppDidBecomeActiveObserver)
-            self.onboardingAppDidBecomeActiveObserver = nil
-        }
-
-        if refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: false) {
-            refreshWindows()
-        }
-
-        if window == nil {
-            applyConfiguredHotKey()
-        }
-    }
-
-    private func showOnboardingIfNeeded() {
-        guard permissionStore.shouldShowOnboarding else {
+        guard let window else {
             return
         }
 
-        showOnboarding()
+        window.close()
+        self.window = nil
+        applyConfiguredHotKey()
     }
 
-    private func refreshOnboardingPermissions() {
-        if refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: true) {
-            refreshWindows()
-        }
-    }
-
-    private func refreshPermissionsAndDetectAccessibilityGrant(fullRefresh: Bool) -> Bool {
+    private func accessibilityWasGranted() -> Bool {
         let hadAccessibility = permissionStore.requiredPermissionsGranted
-        if fullRefresh {
-            permissionStore.refreshAll()
-        } else {
-            permissionStore.refreshAccessibility()
-        }
-
-        let hasAccessibility = permissionStore.requiredPermissionsGranted
-        lastKnownOnboardingAccessibilityGranted = hasAccessibility
-        return !hadAccessibility && hasAccessibility
+        permissionStore.refreshAccessibility()
+        return !hadAccessibility && permissionStore.requiredPermissionsGranted
     }
 
     private func presentErrorAlert(title: String, message: String) {
@@ -303,19 +196,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         )
     }
 
-    func windowDidBecomeKey(_ notification: Notification) {
-        guard notification.object as? NSWindow === onboardingWindow else {
-            return
-        }
-
-        refreshOnboardingPermissions()
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        guard notification.object as? NSWindow === onboardingWindow else {
-            return
-        }
-
-        dismissOnboarding()
-    }
 }
