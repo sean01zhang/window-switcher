@@ -172,6 +172,8 @@ final class WindowClient {
         recentWindowKeys = Self.seedRecentWindowKeys(for: windows)
         resetObservers()
         startObserving(apps: apps)
+        resetWorkspaceObservers()
+        startObservingWorkspace()
     }
 
     private func startObservingWorkspace() {
