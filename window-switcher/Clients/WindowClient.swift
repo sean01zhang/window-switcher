@@ -433,11 +433,7 @@ final class WindowClient {
             moveFocusedWindowToFront(for: appPID)
 
         case kAXApplicationHiddenNotification:
-            guard let appPID = appPID(for: observer) else {
-                return
-            }
-
-            removeWindows(for: appPID)
+            break
 
         case kAXApplicationShownNotification:
             guard let appPID = appPID(for: observer) else {
