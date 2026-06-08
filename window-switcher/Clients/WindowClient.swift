@@ -1,5 +1,7 @@
 import AppKit
 
+
+
 private func getAttributeValue(
     _ attribute: CFString,
     from element: AXUIElement
@@ -52,22 +54,51 @@ private func isWindowElement(_ element: AXUIElement) -> Bool {
     getRole(element: element) == kAXWindowRole as String
 }
 
+@_silgen_name("_AXUIElementGetWindow")
+private func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
+
 private func makeWindow(
     element: AXUIElement,
     app: NSRunningApplication
 ) -> Window? {
-    guard isWindowElement(element),
-          let title = getWindowName(element: element) else {
+    guard isWindowElement(element) else {
         return nil
     }
 
+    var elementPID: pid_t = 0
+    let resolvedApp: NSRunningApplication
+    if AXUIElementGetPid(element, &elementPID) == .success,
+       let actualApp = NSRunningApplication(processIdentifier: elementPID) {
+        resolvedApp = actualApp
+    } else {
+        resolvedApp = app
+    }
+
+    var title = getWindowName(element: element)
+    if title == nil || title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
+        if WindowClient.isChromePWA(resolvedApp) {
+            var tempID: CGWindowID = 0
+            if _AXUIElementGetWindow(element, &tempID) == .success && tempID != 0 {
+                title = resolvedApp.localizedName ?? "Chrome App"
+            }
+        }
+    }
+
+    guard let windowTitle = title, !windowTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        return nil
+    }
+
+    var cgWindowID: CGWindowID = 0
+    let windowID: CGWindowID? = (_AXUIElementGetWindow(element, &cgWindowID) == .success) ? cgWindowID : nil
+
     return Window(
         id: element.hashValue,
-        appName: app.localizedName ?? "Unknown",
-        appPID: app.processIdentifier,
-        name: title,
+        appName: resolvedApp.localizedName ?? "Unknown",
+        appPID: resolvedApp.processIdentifier,
+        name: windowTitle,
         frame: getWindowFrame(element: element),
-        element: element
+        element: element,
+        windowID: windowID
     )
 }
 
@@ -236,6 +267,9 @@ final class WindowClient {
 
             let selfPtr = Unmanaged.passUnretained(self).toOpaque()
             let element = AXUIElementCreateApplication(app.processIdentifier)
+            if Self.isChromeLike(app) {
+                AXUIElementSetAttributeValue(element, "AXEnhancedUserInterface" as CFString, true as CFTypeRef)
+            }
             let notifications: [CFString] = [
                 kAXTitleChangedNotification as CFString,
                 kAXWindowCreatedNotification as CFString,
@@ -260,7 +294,7 @@ final class WindowClient {
                 }
             }
 
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+            CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
         }
     }
 
@@ -269,7 +303,7 @@ final class WindowClient {
             return
         }
 
-        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
     }
 
     private func resetObservers() {
@@ -436,8 +470,28 @@ final class WindowClient {
         NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }
     }
 
+    private static func isChromeLike(_ app: NSRunningApplication) -> Bool {
+        guard let bundleID = app.bundleIdentifier else { return false }
+        let id = bundleID.lowercased()
+        return id.contains("chrome") || id.contains("chromium")
+    }
+
+    private static func isMainChrome(_ app: NSRunningApplication) -> Bool {
+        guard let bundleID = app.bundleIdentifier else { return false }
+        let id = bundleID.lowercased()
+        return id == "com.google.chrome" || id == "org.chromium.chromium"
+    }
+
+    fileprivate static func isChromePWA(_ app: NSRunningApplication) -> Bool {
+        return isChromeLike(app) && !isMainChrome(app)
+    }
+
     private static func getWindows(for app: NSRunningApplication) -> [Window] {
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+        if isChromeLike(app) {
+            AXUIElementSetAttributeValue(axApp, "AXEnhancedUserInterface" as CFString, true as CFTypeRef)
+        }
 
         var result: CFArray?
         guard AXUIElementCopyAttributeValues(axApp, kAXWindowsAttribute as CFString, 0, 100, &result) == .success,
@@ -447,14 +501,22 @@ final class WindowClient {
 
         var windows: [Window] = []
         for axWindow in axWindows {
-            guard let window = makeWindow(element: axWindow, app: app),
-                  !windows.contains(window) else {
+            guard let window = makeWindow(element: axWindow, app: app) else {
+                continue
+            }
+
+            // Ensure the window actually belongs to the app we are querying.
+            // This prevents Chrome PWAs from returning main Chrome windows and vice versa.
+            guard window.appPID == app.processIdentifier else {
+                continue
+            }
+
+            guard !windows.contains(window) else {
                 continue
             }
 
             windows.append(window)
         }
-
         return windows
     }
 

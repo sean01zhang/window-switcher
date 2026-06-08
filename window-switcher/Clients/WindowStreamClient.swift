@@ -149,34 +149,59 @@ class WindowStreamClient {
             onScreenWindowsOnly: true
         )
         
-        var windowsByIdentity: [WindowIdentityKey: [Window]] = [:]
-        var windowsByTitle: [WindowTitleKey: [Window]] = [:]
+        var scWindowsById: [CGWindowID: SCWindow] = [:]
+        for scWindow in content.windows {
+            scWindowsById[scWindow.windowID] = scWindow
+        }
+
+        var windowMap: [Window: SCWindow] = [:]
+        var unmatchedWindows: [Window] = []
+
+        // 1. First pass: Match precisely by CGWindowID
         for window in windows {
-            windowsByTitle[window.previewTitleKey, default: []].append(window)
-            if let key = window.previewIdentityKey {
-                windowsByIdentity[key, default: []].append(window)
+            if let windowID = window.windowID, let scWindow = scWindowsById[windowID] {
+                windowMap[window] = scWindow
+            } else {
+                unmatchedWindows.append(window)
             }
         }
 
-        var matchedWindows: Set<Window> = []
-        var windowMap: [Window: SCWindow] = [:]
-        for scWindow in content.windows {
-            if let key = scWindow.previewIdentityKey,
-               let window = Self.popFirst(for: key, from: &windowsByIdentity, excluding: matchedWindows) {
-                matchedWindows.insert(window)
-                windowMap[window] = scWindow
-                continue
+        // 2. Second pass: Fall back to heuristics for any unmatched windows
+        if !unmatchedWindows.isEmpty {
+            var windowsByIdentity: [WindowIdentityKey: [Window]] = [:]
+            var windowsByTitle: [WindowTitleKey: [Window]] = [:]
+            for window in unmatchedWindows {
+                windowsByTitle[window.previewTitleKey, default: []].append(window)
+                if let key = window.previewIdentityKey {
+                    windowsByIdentity[key, default: []].append(window)
+                }
             }
 
-            if let title = scWindow.previewTitleKey,
-               let window = Self.uniqueCandidate(for: title, from: windowsByTitle, excluding: matchedWindows) {
-                matchedWindows.insert(window)
-                windowMap[window] = scWindow
+            var matchedWindows: Set<Window> = []
+            for scWindow in content.windows {
+                // Skip if this scWindow is already matched to a window in the first pass
+                if windowMap.values.contains(where: { $0.windowID == scWindow.windowID }) {
+                    continue
+                }
+
+                if let key = scWindow.previewIdentityKey,
+                   let window = Self.popFirst(for: key, from: &windowsByIdentity, excluding: matchedWindows) {
+                    matchedWindows.insert(window)
+                    windowMap[window] = scWindow
+                    continue
+                }
+
+                if let title = scWindow.previewTitleKey,
+                   let window = Self.uniqueCandidate(for: title, from: windowsByTitle, excluding: matchedWindows) {
+                    matchedWindows.insert(window)
+                    windowMap[window] = scWindow
+                }
             }
         }
         
         return windowMap
     }
+
 
     private static func popFirst<Key: Hashable>(for key: Key, from matches: inout [Key: [Window]], excluding matchedWindows: Set<Window>) -> Window? {
         guard var windows = matches[key] else {
