@@ -127,6 +127,7 @@ struct SwitcherView: View {
             isSelected: item == viewModel.selectedItem,
             icon: viewModel.icon(for: item)
         )
+            .id(item)
             .onTapGesture {
                 if item == viewModel.selectedItem {
                     viewModel.enterItem(item)
