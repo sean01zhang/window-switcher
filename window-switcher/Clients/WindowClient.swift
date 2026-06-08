@@ -1,107 +1,132 @@
 import AppKit
 
-private func getAttributeValue(
-    _ attribute: CFString,
-    from element: AXUIElement
-) -> CFTypeRef? {
-    var valueRef: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(element, attribute, &valueRef) == .success else {
+
+
+@_silgen_name("_AXUIElementGetWindow")
+private func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
+
+private extension AXUIElement {
+    func getAttributeValue(_ attribute: CFString) -> CFTypeRef? {
+        var valueRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(self, attribute, &valueRef) == .success else {
+            return nil
+        }
+        return valueRef
+    }
+
+    func getElementAttribute(_ attribute: CFString) -> AXUIElement? {
+        guard let valueRef = getAttributeValue(attribute) else {
+            return nil
+        }
+        if CFGetTypeID(valueRef) == AXUIElementGetTypeID() {
+            return (valueRef as! AXUIElement)
+        }
         return nil
     }
 
-    return valueRef
+    var role: String? {
+        getAttributeValue(kAXRoleAttribute as CFString) as? String
+    }
+
+    var isWindow: Bool {
+        role == kAXWindowRole as String
+    }
+
+    var windowTitle: String? {
+        guard let title = getAttributeValue(kAXTitleAttribute as CFString) as? String else {
+            return nil
+        }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    var windowFrame: CGRect? {
+        var positionRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(self, kAXPositionAttribute as CFString, &positionRef) == .success,
+              let positionRef,
+              CFGetTypeID(positionRef) == AXValueGetTypeID() else {
+            return nil
+        }
+        let position = positionRef as! AXValue
+        guard AXValueGetType(position) == .cgPoint else {
+            return nil
+        }
+
+        var sizeRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(self, kAXSizeAttribute as CFString, &sizeRef) == .success,
+              let sizeRef,
+              CFGetTypeID(sizeRef) == AXValueGetTypeID() else {
+            return nil
+        }
+        let size = sizeRef as! AXValue
+        guard AXValueGetType(size) == .cgSize else {
+            return nil
+        }
+
+        var origin = CGPoint.zero
+        var dimensions = CGSize.zero
+        guard AXValueGetValue(position, .cgPoint, &origin),
+              AXValueGetValue(size, .cgSize, &dimensions) else {
+            return nil
+        }
+
+        return CGRect(origin: origin, size: dimensions)
+    }
+
+    var windowID: CGWindowID? {
+        var cgWindowID: CGWindowID = 0
+        return (_AXUIElementGetWindow(self, &cgWindowID) == .success) ? cgWindowID : nil
+    }
+
+    var processIdentifier: pid_t? {
+        var pid: pid_t = 0
+        return (AXUIElementGetPid(self, &pid) == .success) ? pid : nil
+    }
 }
 
-private func getWindowName(element: AXUIElement) -> String? {
-    guard let titleRef = getAttributeValue(kAXTitleAttribute as CFString, from: element),
-          let title = titleRef as? String else {
-        return nil
-    }
-
-    let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmedTitle.isEmpty ? nil : trimmedTitle
-}
-
-private func getWindowAttribute(
-    _ attribute: CFString,
-    from element: AXUIElement
-) -> AXUIElement? {
-    guard let valueRef = getAttributeValue(attribute, from: element) else {
-        return nil
-    }
-
-    // Ensure the CFTypeRef is actually an AXUIElement before bridging.
-    if CFGetTypeID(valueRef) == AXUIElementGetTypeID() {
-        // Safe to force-cast after verifying type ID.
-        return (valueRef as! AXUIElement)
-    } else {
-        return nil
+extension NSRunningApplication {
+    var requiresAXEnhancedUserInterface: Bool {
+        guard let bundleID = bundleIdentifier else { return false }
+        let id = bundleID.lowercased()
+        return id.contains("chrome") || id.contains("chromium")
     }
 }
 
-private func getRole(element: AXUIElement) -> String? {
-    guard let roleRef = getAttributeValue(kAXRoleAttribute as CFString, from: element),
-          let role = roleRef as? String else {
-        return nil
+extension Window {
+    init?(element: AXUIElement, fallbackApp: NSRunningApplication) {
+        guard element.isWindow else {
+            return nil
+        }
+
+        let resolvedApp: NSRunningApplication
+        if let pid = element.processIdentifier,
+           let actualApp = NSRunningApplication(processIdentifier: pid) {
+            resolvedApp = actualApp
+        } else {
+            resolvedApp = fallbackApp
+        }
+
+        var title = element.windowTitle
+        if title == nil || title?.isEmpty == true {
+            // General Rule: Any real window (having a CGWindowID) that lacks a title
+            // falls back to its application's localized name.
+            if let tempID = element.windowID, tempID != 0 {
+                title = resolvedApp.localizedName ?? "Application Window"
+            }
+        }
+
+        guard let windowTitle = title, !windowTitle.isEmpty else {
+            return nil
+        }
+
+        self.id = element.hashValue
+        self.appName = resolvedApp.localizedName ?? "Unknown"
+        self.appPID = resolvedApp.processIdentifier
+        self.name = windowTitle
+        self.frame = element.windowFrame
+        self.element = element
+        self.windowID = element.windowID
     }
-
-    return role
-}
-
-private func isWindowElement(_ element: AXUIElement) -> Bool {
-    getRole(element: element) == kAXWindowRole as String
-}
-
-private func makeWindow(
-    element: AXUIElement,
-    app: NSRunningApplication
-) -> Window? {
-    guard isWindowElement(element),
-          let title = getWindowName(element: element) else {
-        return nil
-    }
-
-    return Window(
-        id: element.hashValue,
-        appName: app.localizedName ?? "Unknown",
-        appPID: app.processIdentifier,
-        name: title,
-        frame: getWindowFrame(element: element),
-        element: element
-    )
-}
-
-private func getWindowFrame(element: AXUIElement) -> CGRect? {
-    var positionRef: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionRef) == .success,
-          let positionRef,
-          CFGetTypeID(positionRef) == AXValueGetTypeID() else {
-        return nil
-    }
-    let position = positionRef as! AXValue
-    guard AXValueGetType(position) == .cgPoint else {
-        return nil
-    }
-
-    var sizeRef: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeRef) == .success,
-          let sizeRef,
-          CFGetTypeID(sizeRef) == AXValueGetTypeID() else {
-        return nil
-    }
-    let size = sizeRef as! AXValue
-    guard AXValueGetType(size) == .cgSize else {
-        return nil
-    }
-
-    var origin = CGPoint.zero
-    var dimensions = CGSize.zero
-    guard AXValueGetValue(position, .cgPoint, &origin),
-          AXValueGetValue(size, .cgSize, &dimensions) else {
-        return nil
-    }
-
-    return CGRect(origin: origin, size: dimensions)
 }
 
 private func handleObserverEvent(
@@ -236,6 +261,9 @@ final class WindowClient {
 
             let selfPtr = Unmanaged.passUnretained(self).toOpaque()
             let element = AXUIElementCreateApplication(app.processIdentifier)
+            if app.requiresAXEnhancedUserInterface {
+                AXUIElementSetAttributeValue(element, "AXEnhancedUserInterface" as CFString, true as CFTypeRef)
+            }
             let notifications: [CFString] = [
                 kAXTitleChangedNotification as CFString,
                 kAXWindowCreatedNotification as CFString,
@@ -260,7 +288,7 @@ final class WindowClient {
                 }
             }
 
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+            CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
         }
     }
 
@@ -269,7 +297,7 @@ final class WindowClient {
             return
         }
 
-        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .commonModes)
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
     }
 
     private func resetObservers() {
@@ -305,7 +333,7 @@ final class WindowClient {
     }
 
     private func syncWindowIfNeeded(observer: AXObserver, element: AXUIElement) {
-        guard isWindowElement(element),
+        guard element.isWindow,
               let appPID = appPID(for: observer) else {
             return
         }
@@ -339,12 +367,12 @@ final class WindowClient {
     private func moveFocusedWindowToFront(for appPID: Int32) {
         let appElement = AXUIElementCreateApplication(appPID)
 
-        if let focusedWindow = getWindowAttribute(kAXFocusedWindowAttribute as CFString, from: appElement),
+        if let focusedWindow = appElement.getElementAttribute(kAXFocusedWindowAttribute as CFString),
            moveTrackedWindowToFront(element: focusedWindow) {
             return
         }
 
-        if let mainWindow = getWindowAttribute(kAXMainWindowAttribute as CFString, from: appElement) {
+        if let mainWindow = appElement.getElementAttribute(kAXMainWindowAttribute as CFString) {
             _ = moveTrackedWindowToFront(element: mainWindow)
         }
     }
@@ -358,7 +386,7 @@ final class WindowClient {
 
             if let windowIdx = windows.firstIndex(where: { $0.element == element }) {
                 guard let app = NSRunningApplication(processIdentifier: appPID),
-                      let updatedWindow = makeWindow(element: element, app: app) else {
+                      let updatedWindow = Window(element: element, fallbackApp: app) else {
                     windows.remove(at: windowIdx)
                     reconcileRecentWindowKeys()
                     return
@@ -372,7 +400,7 @@ final class WindowClient {
 
         case kAXWindowMovedNotification, kAXWindowResizedNotification:
             if let windowIdx = windows.firstIndex(where: { $0.element == element }) {
-                windows[windowIdx].frame = getWindowFrame(element: element)
+                windows[windowIdx].frame = element.windowFrame
                 reconcileRecentWindowKeys()
             } else {
                 syncWindowIfNeeded(observer: observer, element: element)
@@ -439,6 +467,10 @@ final class WindowClient {
     private static func getWindows(for app: NSRunningApplication) -> [Window] {
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
 
+        if app.requiresAXEnhancedUserInterface {
+            AXUIElementSetAttributeValue(axApp, "AXEnhancedUserInterface" as CFString, true as CFTypeRef)
+        }
+
         var result: CFArray?
         guard AXUIElementCopyAttributeValues(axApp, kAXWindowsAttribute as CFString, 0, 100, &result) == .success,
               let axWindows = result as? [AXUIElement] else {
@@ -447,14 +479,22 @@ final class WindowClient {
 
         var windows: [Window] = []
         for axWindow in axWindows {
-            guard let window = makeWindow(element: axWindow, app: app),
-                  !windows.contains(window) else {
+            guard let window = Window(element: axWindow, fallbackApp: app) else {
+                continue
+            }
+
+            // Ensure the window actually belongs to the app we are querying.
+            // This prevents Chrome PWAs from returning main Chrome windows and vice versa.
+            guard window.appPID == app.processIdentifier else {
+                continue
+            }
+
+            guard !windows.contains(window) else {
                 continue
             }
 
             windows.append(window)
         }
-
         return windows
     }
 

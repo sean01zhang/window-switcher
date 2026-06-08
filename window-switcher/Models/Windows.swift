@@ -7,6 +7,7 @@ struct Window: Hashable {
     var name: String
     var frame: CGRect?
     var element: AXUIElement
+    var windowID: CGWindowID? = nil
 
     var fullyQualifiedName: String {
         "\(appName): \(name)"
